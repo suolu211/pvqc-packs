@@ -1,6 +1,184 @@
 {
-  "version": "test",
-  "updatedAt": "2026-05-30 22:13:35",
-  "message": "GitHub API 連線測試成功",
-  "packs": []
+  "version": "1.0",
+  "updatedAt": "2026-05-30 22:35:41",
+  "totalPacks": 3,
+  "packs": [
+    {
+      "id": "mechanical",
+      "name": "機械群",
+      "creatorId": "official",
+      "lang": "en",
+      "desc": "機械群專業英文字彙",
+      "price": 0,
+      "totalWords": 10,
+      "downloads": 0,
+      "version": 1,
+      "updatedAt": "2026-05-30T14:34:08.000Z",
+      "words": [
+        {
+          "id": "mechanical_001",
+          "en": "mechanism",
+          "pos": "n.",
+          "zh": "機構；機制",
+          "syl": "ˈmɛk·ə·nɪz·əm",
+          "exEn": "The braking mechanism failed.",
+          "exZh": "煞車機構發生故障。"
+        },
+        {
+          "id": "mechanical_002",
+          "en": "torque",
+          "pos": "n.",
+          "zh": "扭矩；轉矩",
+          "syl": "tɔːrk",
+          "exEn": "The engine produces high torque.",
+          "exZh": "這引擎產生高扭矩。"
+        },
+        {
+          "id": "mechanical_003",
+          "en": "hydraulic",
+          "pos": "adj.",
+          "zh": "液壓的；水力的",
+          "syl": "haɪˈdrɔː·lɪk",
+          "exEn": "The hydraulic system controls the lift.",
+          "exZh": "液壓系統控制升降機。"
+        },
+        {
+          "id": "mechanical_004",
+          "en": "conveyor",
+          "pos": "n.",
+          "zh": "輸送帶；傳送機",
+          "syl": "kənˈveɪ·ər",
+          "exEn": "The conveyor belt moves parts automatically.",
+          "exZh": "輸送帶自動移動零件。"
+        },
+        {
+          "id": "mechanical_005",
+          "en": "calibrate",
+          "pos": "v.",
+          "zh": "校準；標定",
+          "syl": "ˈkæl·ɪ·breɪt",
+          "exEn": "We must calibrate the instrument before use.",
+          "exZh": "使用前必須校準儀器。"
+        },
+        {
+          "id": "mechanical_006",
+          "en": "tolerance",
+          "pos": "n.",
+          "zh": "公差；容許誤差",
+          "syl": "ˈtɒl·ər·əns",
+          "exEn": "The tolerance is within 0.01mm.",
+          "exZh": "公差在0.01毫米以內。"
+        },
+        {
+          "id": "mechanical_007",
+          "en": "bearing",
+          "pos": "n.",
+          "zh": "軸承",
+          "syl": "ˈbɛr·ɪŋ",
+          "exEn": "Replace the worn bearing immediately.",
+          "exZh": "立即更換磨損的軸承。"
+        },
+        {
+          "id": "mechanical_008",
+          "en": "pneumatic",
+          "pos": "adj.",
+          "zh": "氣動的；氣壓的",
+          "syl": "njuːˈmæt·ɪk",
+          "exEn": "The pneumatic drill is very powerful.",
+          "exZh": "這氣動鑽非常強力。"
+        },
+        {
+          "id": "mechanical_009",
+          "en": "lubrication",
+          "pos": "n.",
+          "zh": "潤滑；潤滑作用",
+          "syl": "ˌluː·brɪˈkeɪ·ʃən",
+          "exEn": "Regular lubrication prevents wear.",
+          "exZh": "定期潤滑可防止磨損。"
+        },
+        {
+          "id": "mechanical_010",
+          "en": "specification",
+          "pos": "n.",
+          "zh": "規格；規範",
+          "syl": "ˌspɛs·ɪ·fɪˈkeɪ·ʃən",
+          "exEn": "Check the product specification carefully.",
+          "exZh": "請仔細確認產品規格。"
+        }
+      ]
+    },
+    {
+      "id": "electrical",
+      "name": "電機群",
+      "creatorId": "official",
+      "lang": "en",
+      "desc": "電機群專業英文字彙",
+      "price": 0,
+      "totalWords": 3,
+      "downloads": 0,
+      "version": 1,
+      "updatedAt": "2026-05-30T14:34:08.000Z",
+      "words": [
+        {
+          "id": "electrical_001",
+          "en": "circuit",
+          "pos": "n.",
+          "zh": "電路；回路",
+          "syl": "ˈsɜː·kɪt",
+          "exEn": "The circuit was overloaded.",
+          "exZh": "電路過載了。"
+        },
+        {
+          "id": "electrical_002",
+          "en": "voltage",
+          "pos": "n.",
+          "zh": "電壓；伏特數",
+          "syl": "ˈvoʊl·tɪdʒ",
+          "exEn": "Check the voltage before connecting.",
+          "exZh": "連接前請確認電壓。"
+        },
+        {
+          "id": "electrical_003",
+          "en": "semiconductor",
+          "pos": "n.",
+          "zh": "半導體",
+          "syl": "ˌsɛm·i·kənˈdʌk·tər",
+          "exEn": "Silicon is a common semiconductor.",
+          "exZh": "矽是常見的半導體。"
+        }
+      ]
+    },
+    {
+      "id": "civil",
+      "name": "土木群",
+      "creatorId": "official",
+      "lang": "en",
+      "desc": "土木群專業英文字彙",
+      "price": 0,
+      "totalWords": 2,
+      "downloads": 0,
+      "version": 1,
+      "updatedAt": "2026-05-30T14:34:08.000Z",
+      "words": [
+        {
+          "id": "civil_001",
+          "en": "foundation",
+          "pos": "n.",
+          "zh": "基礎；地基",
+          "syl": "faʊnˈdeɪ·ʃən",
+          "exEn": "The foundation must be strong.",
+          "exZh": "地基必須堅固。"
+        },
+        {
+          "id": "civil_002",
+          "en": "excavation",
+          "pos": "n.",
+          "zh": "挖掘；開挖",
+          "syl": "ˌɛk·skəˈveɪ·ʃən",
+          "exEn": "Excavation work begins tomorrow.",
+          "exZh": "挖掘工作明天開始。"
+        }
+      ]
+    }
+  ]
 }
