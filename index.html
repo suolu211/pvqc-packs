@@ -2,10 +2,1857 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <!--
   ==========================================
   AI 驅動職業導向多語言單字學習平台
-  版本：Beta Ver. 1.002
-  日期：2026-05-15
-  ==========================
+  版本：Beta Ver. 1.013
+  日期：2026-05-30
+  ==========================================
+  Beta Ver. 1.013 更新：
+  · 後台-1 OFFICIAL_PACKS 改為從 GitHub packs.json 動態載入
+  · 網路失敗時自動降級使用內建備用包（FALLBACK_PACKS）
+  · init() 改為 async，啟動時先 await 載入字庫包
+  ==========================================
+  Beta Ver. 1.012 更新：
+  · Bug 選後按鈕鎖定：選不熟/熟悉後按鈕立即 disabled，只能按「繼續」
+  · UI  拆音節與音標字體加大
+  · F-036 批次建立上限 100 → 2500
+  · F-037 用口說按鈕（最多3次、失敗提示、語言自動對應）
+  · F-039 速度鍵UX修正：按同鍵再播一次，不切回正常；換卡才重置
+  ==========================================
+  Beta Ver. 1.011 更新：
+  ==========================================
+  Beta Ver. 1.007 更新：
+  · B-003 再練一次按鈕修正
+  · B-004 分享LINE/FB改為自動複製
+  · UI-006 同義詞左側小字、動詞三態右側小字、中文為主視覺
+  · UI-010 結算頁文字依語言切換
+  · UI-011 建字區欄位依語言切換
+  · F-028 AI例句：英文在上、中文在下
+  ==========================================
+  Beta Ver. 1.006 更新：
+  · UX-003 Onboarding：選語言自動跳地標，選地標自動進學習，無按鈕
+  · UX-004 多語言進度獨立儲存（英/日/韓各自SRS/地標/進度）
+  · UX-005 有進度時跳過地標選擇，直接進入學習
+  · UI-006 同義詞在中文左側小字，動詞三態在右側小字，點入展開浮層
+  · UI-007 帳號UI框架（Email輸入，首次建立/回訪登入）
+  · UI-008 重置改為App內自訂確認Modal
+  · UI-009 QR Code說明同時含iPhone和Android
+  · F-027 語言切換：一個帳號英/日/韓獨立進度
+  ==========================================
+-->
+<title>PVQC 職業單字學習 v1.013</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{
+  --primary:#7C3AED;--primary-light:#EDE9FE;
+  --accent:#F59E0B;--accent-light:#FEF3C7;
+  --success:#10B981;--danger:#EF4444;--danger-light:#FEE2E2;
+  --bg:#F8F7FF;--card:#FFFFFF;--border:#E5E7EB;
+  --text:#111827;--text-sub:#6B7280;--text-xs:#9CA3AF;
+  --radius:14px;--radius-sm:9px;
+  --shadow:0 2px 10px rgba(124,58,237,0.07);
+}
+[data-theme="A"]{--primary:#2563EB;--primary-light:#DBEAFE;--bg:#F0F4FF;}
+[data-theme="C"]{--primary:#059669;--primary-light:#D1FAE5;--bg:#F0FDF6;}
+[data-theme="D"]{--primary:#E11D48;--primary-light:#FFE4E6;--bg:#FFF0F3;}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans TC',-apple-system,sans-serif;background:var(--bg);color:var(--text);max-width:480px;margin:0 auto;min-height:100vh;}
+button{cursor:pointer;border:none;font-family:inherit;}
+input,select,textarea{font-family:inherit;}
+
+/* Header */
+.header{background:var(--card);border-bottom:1px solid var(--border);padding:11px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.header-title{font-size:15px;font-weight:700;color:var(--primary);}
+.header-sub{font-size:11px;color:var(--text-sub);}
+.streak-badge{background:var(--accent-light);color:#92400E;border-radius:99px;padding:3px 10px;font-size:12px;font-weight:700;}
+
+/* Nav */
+.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:100;}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0;background:none;color:var(--text-sub);font-size:10px;transition:all .2s;border-top:2px solid transparent;}
+.nav-btn.active{color:var(--primary);border-top-color:var(--primary);}
+.nav-btn i{font-size:20px;}
+
+/* Pages */
+.page{display:none;padding:14px;padding-bottom:80px;}
+.page.active{display:block;}
+.card{background:var(--card);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);margin-bottom:10px;border:1px solid var(--border);}
+
+/* ===== 帳號頁 UI-007 ===== */
+.account-page{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;}
+.account-logo{font-size:52px;margin-bottom:12px;}
+.account-title{font-size:26px;font-weight:800;color:var(--primary);text-align:center;margin-bottom:6px;}
+.account-sub{font-size:14px;color:var(--text-sub);text-align:center;margin-bottom:6px;}
+.account-badge{font-size:12px;color:var(--success);background:#D1FAE5;border-radius:99px;padding:4px 12px;margin-bottom:24px;display:inline-block;}
+.account-form{width:100%;}
+.account-label{font-size:12px;font-weight:600;color:var(--text-sub);margin-bottom:4px;display:block;}
+.account-input{width:100%;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:13px 14px;font-size:15px;color:var(--text);background:var(--card);outline:none;margin-bottom:12px;transition:border-color .2s;}
+.account-input:focus{border-color:var(--primary);}
+.btn-account{width:100%;background:var(--primary);color:#fff;border-radius:var(--radius-sm);padding:14px;font-size:16px;font-weight:700;margin-bottom:12px;}
+.account-switch{font-size:13px;color:var(--text-sub);text-align:center;}
+.account-switch span{color:var(--primary);font-weight:600;cursor:pointer;}
+
+/* ===== Onboarding（無按鈕）UX-003 ===== */
+.onboarding{position:fixed;inset:0;background:var(--bg);z-index:190;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:22px;overflow-y:auto;}
+.ob-step-indicator{font-size:11px;color:var(--primary);background:var(--primary-light);border-radius:99px;padding:3px 12px;margin-bottom:14px;}
+.ob-title{font-size:20px;font-weight:800;color:var(--text);text-align:center;margin-bottom:4px;}
+.ob-sub{font-size:13px;color:var(--text-sub);text-align:center;margin-bottom:18px;}
+
+/* 語言選擇 */
+.lang-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;width:100%;}
+.lang-btn{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:16px 8px;text-align:center;cursor:pointer;transition:all .2s;}
+.lang-btn:hover{border-color:var(--primary);background:var(--primary-light);}
+.lang-flag{font-size:30px;margin-bottom:5px;}
+.lang-name{font-size:13px;font-weight:700;}
+.lang-sub{font-size:10px;color:var(--text-sub);margin-top:2px;}
+
+/* 地標選擇 */
+.lm-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;max-height:400px;overflow-y:auto;}
+.lm-btn{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:12px 8px;text-align:center;cursor:pointer;transition:all .2s;}
+.lm-btn:hover{border-color:var(--primary);background:var(--primary-light);}
+.lm-tag{font-size:9px;background:var(--accent-light);color:#92400E;border-radius:99px;padding:1px 7px;display:inline-block;margin-bottom:3px;}
+.lm-emoji{font-size:24px;margin-bottom:3px;}
+.lm-name{font-size:12px;font-weight:700;}
+.lm-info{font-size:10px;color:var(--text-sub);}
+
+/* ===== 單字卡 ===== */
+.word-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px 16px 14px;margin-bottom:10px;border:1px solid var(--border);position:relative;}
+.report-icon-btn{position:absolute;top:10px;right:10px;background:none;border:none;color:var(--text-sub);font-size:14px;padding:4px 6px;border-radius:6px;cursor:pointer;opacity:.5;transition:all .15s;}
+.report-icon-btn:hover{color:#F97316;opacity:1;}
+.word-main{font-size:34px;font-weight:800;text-align:center;margin-bottom:6px;letter-spacing:-0.5px;}
+.pos-wrap{text-align:center;margin-bottom:12px;}
+.pos-tag{font-size:11px;color:var(--primary);background:var(--primary-light);border-radius:99px;padding:2px 10px;display:inline-block;}
+.syl-table{width:100%;border-collapse:collapse;margin-bottom:14px;background:var(--bg);border-radius:var(--radius-sm);overflow:hidden;}
+.syl-table td{text-align:center;padding:7px 5px;font-size:15px;border:1px solid var(--border);}
+.syl-table tr:first-child td{font-weight:700;}
+.syl-table tr:last-child td{color:var(--primary);font-size:14px;}
+
+/* 評分按鈕 UI-005 */
+.rating-row{display:flex;gap:8px;margin-bottom:10px;}
+.btn-known{flex:1;background:var(--success);color:#fff;border-radius:var(--radius-sm);padding:12px;font-size:14px;font-weight:700;}
+.btn-unknown{flex:1;background:#fff;color:var(--danger);border-radius:var(--radius-sm);padding:12px;font-size:14px;font-weight:700;border:2px solid var(--danger);}
+
+/* 聽發音 */
+.btn-listen{width:100%;background:var(--primary-light);color:var(--primary);border-radius:var(--radius-sm);padding:10px;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:8px;}
+
+/* F-039 學習區聽發音速度列 */
+.listen-row{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
+.btn-speed{background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:9px 10px;font-size:12px;font-weight:700;color:var(--text-sub);flex-shrink:0;transition:all .15s;min-width:44px;}
+.btn-speed.active{background:var(--primary-light);border-color:var(--primary);color:var(--primary);}
+.btn-listen-main{flex:1;background:var(--primary-light);color:var(--primary);border-radius:var(--radius-sm);padding:10px;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:5px;}
+
+/* 答案區 */
+.answer-area{display:none;margin-top:12px;animation:fadeIn .25s ease;}
+.answer-area.show{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* UI-006 同義詞/動詞三態：中文翻譯左右側小字 */
+/* B-005 同義詞/動詞三態：「同」「動」小按鈕入口 */
+.zh-row{display:flex;align-items:center;justify-content:center;gap:10px;margin:10px 0;}
+.zh-main{font-size:26px;font-weight:700;color:var(--text);flex-shrink:0;}
+/* 「同」「動」小圓形按鈕，低調不搶眼 */
+.syn-entry-btn{display:none;width:20px;height:20px;border-radius:50%;background:var(--bg);border:1px solid var(--border);color:var(--text-sub);font-size:9px;font-weight:700;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;}
+.syn-entry-btn.visible{display:flex;}
+.syn-entry-btn:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-light);}
+.verb-entry-btn{display:none;width:20px;height:20px;border-radius:50%;background:var(--bg);border:1px solid var(--border);color:var(--text-sub);font-size:9px;font-weight:700;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;}
+.verb-entry-btn.visible{display:flex;}
+.verb-entry-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light);}
+
+/* 浮層 */
+.popup-overlay{display:none;position:fixed;inset:0;z-index:500;}
+.popup-overlay.show{display:block;}
+.popup-box{position:absolute;background:var(--card);border-radius:var(--radius-sm);padding:12px 14px;box-shadow:0 4px 20px rgba(0,0,0,.15);min-width:160px;max-width:240px;font-size:13px;line-height:1.8;border:1px solid var(--border);}
+.popup-title{font-size:11px;font-weight:700;color:var(--text-sub);margin-bottom:6px;}
+.popup-item{color:var(--text);}
+.popup-item strong{color:var(--primary);}
+
+.example-box{background:var(--primary-light);border-radius:var(--radius-sm);padding:10px 12px;margin:8px 0;font-size:13px;line-height:1.6;}
+.btn-next{width:100%;background:var(--primary);color:#fff;border-radius:var(--radius-sm);padding:12px;font-size:14px;font-weight:700;margin-top:10px;}
+
+/* 進度 */
+.progress-wrap{background:var(--border);border-radius:99px;height:5px;margin-bottom:8px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--primary);border-radius:99px;transition:width .4s;}
+.progress-label{font-size:11px;color:var(--text-sub);text-align:right;margin-bottom:10px;}
+
+/* 不熟清單按鈕 */
+.unknown-list-btn{background:var(--danger-light);color:var(--danger);border-radius:var(--radius-sm);padding:8px 14px;font-size:12px;font-weight:600;border:1px solid var(--danger);margin-bottom:10px;width:100%;text-align:left;}
+
+/* 結算 */
+.result-card{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);padding:24px 16px;text-align:center;}
+.result-title{font-size:20px;font-weight:800;color:var(--primary);margin-bottom:4px;}
+.result-sub{font-size:13px;color:var(--text-sub);margin-bottom:16px;}
+.stat-row{display:flex;justify-content:center;gap:24px;margin-bottom:16px;}
+.stat-box{text-align:center;}
+.stat-num{font-size:28px;font-weight:800;}
+.stat-label{font-size:11px;color:var(--text-sub);}
+
+/* 地標卡 */
+.lm-card{background:linear-gradient(135deg,var(--primary-light),var(--accent-light));border-radius:var(--radius-sm);padding:14px;margin:10px 0;text-align:center;}
+.lm-card-name{font-size:16px;font-weight:800;color:var(--primary);margin-bottom:3px;}
+.lm-card-sub{font-size:11px;color:var(--text-sub);margin-bottom:8px;}
+.lm-bar-bg{background:rgba(255,255,255,0.5);border-radius:99px;height:8px;overflow:hidden;margin-bottom:6px;}
+.lm-bar-fill{height:100%;background:var(--primary);border-radius:99px;transition:width 1s;}
+.lm-milestone{font-size:11px;color:var(--primary);font-weight:600;}
+.lm-cheer{background:var(--card);border-radius:var(--radius-sm);padding:8px 12px;margin-top:8px;font-size:12px;font-style:italic;color:var(--text);text-align:left;}
+
+/* 分享 */
+.share-btns{display:flex;flex-direction:column;gap:7px;margin-top:10px;}
+.btn-line{background:#06C755;color:#fff;border-radius:var(--radius-sm);padding:11px;font-size:13px;font-weight:700;}
+.btn-copy{background:var(--primary-light);color:var(--primary);border-radius:var(--radius-sm);padding:11px;font-size:13px;font-weight:700;}
+.btn-ig{background:linear-gradient(45deg,#F58529,#DD2A7B,#8134AF);color:#fff;border-radius:var(--radius-sm);padding:11px;font-size:13px;font-weight:700;}
+.btn-qr{background:var(--accent-light);color:#92400E;border-radius:var(--radius-sm);padding:11px;font-size:13px;font-weight:700;border:1px solid var(--accent);}
+.qr-section{display:none;background:var(--bg);border-radius:var(--radius-sm);padding:14px;margin-top:8px;text-align:center;}
+.qr-section.show{display:block;}
+.qr-url{font-size:12px;color:var(--primary);font-weight:600;margin-bottom:8px;word-break:break-all;}
+/* UI-009 QR說明 */
+.qr-hint{font-size:11px;color:var(--text-sub);line-height:1.7;margin-top:8px;text-align:left;}
+
+/* 字庫包 */
+.pack-section-title{font-size:13px;font-weight:700;color:var(--text-sub);margin:14px 0 8px;display:flex;align-items:center;gap:6px;}
+.pack-card{background:var(--card);border-radius:var(--radius-sm);border:1px solid var(--border);padding:12px 14px;margin-bottom:8px;transition:border-color .2s;}
+.pack-card.active{border-color:var(--primary);}
+.pack-name{font-size:14px;font-weight:700;}
+.pack-badge{font-size:10px;background:var(--success);color:#fff;border-radius:99px;padding:1px 7px;margin-left:5px;}
+.pack-meta{font-size:11px;color:var(--text-sub);margin-top:3px;}
+.pack-progress-bar{background:var(--border);border-radius:99px;height:4px;margin:6px 0 4px;overflow:hidden;}
+.pack-progress-fill{height:100%;background:var(--primary);border-radius:99px;}
+.pack-progress-label{font-size:10px;color:var(--text-sub);}
+.pack-actions{display:flex;gap:6px;margin-top:8px;}
+.pack-toggle{flex:1;border-radius:99px;padding:6px;font-size:12px;font-weight:600;background:var(--border);color:var(--text-sub);}
+.pack-card.active .pack-toggle{background:var(--primary);color:#fff;}
+.pack-delete{background:var(--danger-light);color:var(--danger);border-radius:99px;padding:6px 12px;font-size:12px;font-weight:600;}
+.store-search{width:100%;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;font-size:14px;background:var(--card);margin-bottom:10px;outline:none;}
+.store-search:focus{border-color:var(--primary);}
+.store-card{background:var(--card);border-radius:var(--radius-sm);border:1px solid var(--border);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;}
+.store-name{font-size:14px;font-weight:700;}
+.store-meta{font-size:11px;color:var(--text-sub);margin-top:2px;}
+.store-price{font-size:13px;font-weight:700;color:var(--primary);margin-top:2px;}
+.btn-buy{background:var(--primary);color:#fff;border-radius:99px;padding:7px 16px;font-size:12px;font-weight:700;}
+
+/* 建字 */
+.build-tabs{display:flex;gap:0;margin-bottom:14px;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border);}
+.build-tab{flex:1;padding:10px;background:var(--bg);color:var(--text-sub);font-size:13px;font-weight:600;text-align:center;transition:all .2s;}
+.build-tab.active{background:var(--primary);color:#fff;}
+.input-group{margin-bottom:12px;}
+.input-label{font-size:12px;color:var(--text-sub);margin-bottom:4px;display:block;font-weight:600;}
+.input-label .opt{font-size:10px;color:var(--text-sub);background:var(--border);border-radius:99px;padding:1px 7px;margin-left:4px;}
+.input-field{width:100%;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:14px;color:var(--text);background:var(--card);outline:none;transition:border-color .2s;}
+.input-field:focus{border-color:var(--primary);}
+.build-notice{background:var(--accent-light);border-radius:var(--radius-sm);padding:10px 12px;font-size:12px;color:#92400E;line-height:1.6;margin-bottom:12px;}
+.btn-primary{width:100%;background:var(--primary);color:#fff;border-radius:var(--radius-sm);padding:12px;font-size:15px;font-weight:700;}
+
+/* 成果/統計 */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.stat-card{background:var(--card);border-radius:var(--radius-sm);border:1px solid var(--border);padding:13px;text-align:center;}
+.stat-card-num{font-size:26px;font-weight:800;color:var(--primary);}
+.stat-card-label{font-size:11px;color:var(--text-sub);margin-top:2px;}
+
+/* 設定 */
+.setting-card{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);padding:0 14px;margin-bottom:10px;}
+.setting-item{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--border);}
+.setting-item:last-child{border-bottom:none;}
+.setting-label{font-size:14px;font-weight:600;}
+.setting-sub{font-size:11px;color:var(--text-sub);margin-top:2px;}
+.ctrl{display:flex;align-items:center;gap:7px;}
+.cnt-btn{width:30px;height:30px;border-radius:50%;background:var(--primary-light);color:var(--primary);font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.cnt-val{font-size:15px;font-weight:700;min-width:28px;text-align:center;}
+.toggle{width:42px;height:23px;border-radius:99px;background:var(--border);position:relative;cursor:pointer;transition:background .2s;}
+.toggle.on{background:var(--primary);}
+.toggle::after{content:'';position:absolute;width:17px;height:17px;border-radius:50%;background:#fff;top:3px;left:3px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+.toggle.on::after{transform:translateX(19px);}
+.theme-row{display:flex;gap:8px;margin-top:10px;}
+.theme-dot{width:28px;height:28px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:transform .15s;}
+.theme-dot.active{border-color:var(--text);transform:scale(1.15);}
+
+/* 語言切換（設定頁）*/
+.lang-switch-row{display:flex;gap:6px;margin-top:8px;}
+.lang-switch-btn{flex:1;padding:8px 4px;border-radius:var(--radius-sm);background:var(--bg);border:1.5px solid var(--border);font-size:12px;font-weight:600;color:var(--text-sub);text-align:center;transition:all .2s;}
+.lang-switch-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:300;align-items:flex-end;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal-box{background:var(--card);border-radius:var(--radius) var(--radius) 0 0;padding:18px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;}
+.modal-title{font-size:15px;font-weight:800;margin-bottom:12px;}
+.modal-opt{display:flex;align-items:center;gap:8px;padding:12px;border-radius:var(--radius-sm);border:1px solid var(--border);font-size:14px;color:var(--text);background:none;width:100%;text-align:left;margin-bottom:6px;cursor:pointer;}
+.modal-opt:hover{background:var(--primary-light);border-color:var(--primary);}
+.btn-cancel{width:100%;background:var(--bg);color:var(--text-sub);border-radius:var(--radius-sm);padding:11px;font-size:14px;margin-top:6px;border:1px solid var(--border);}
+.btn-danger{width:100%;background:var(--danger);color:#fff;border-radius:var(--radius-sm);padding:11px;font-size:14px;font-weight:700;margin-bottom:6px;}
+.modal-warning{font-size:13px;color:var(--text-sub);line-height:1.7;margin-bottom:16px;padding:12px;background:var(--danger-light);border-radius:var(--radius-sm);}
+
+/* 分享預覽 */
+.share-preview{background:var(--bg);border-radius:var(--radius-sm);padding:14px;margin:10px 0;font-size:13px;line-height:1.8;white-space:pre-wrap;color:var(--text);border:1px solid var(--border);}
+
+/* Toast */
+.toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--text);color:#fff;border-radius:99px;padding:9px 18px;font-size:13px;font-weight:600;opacity:0;transition:all .25s;z-index:400;white-space:nowrap;pointer-events:none;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* F-037 麥克風動畫 */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+</style>
+</head>
+<body>
+
+<!-- UI-007 帳號頁 -->
+<div class="account-page" id="accountPage">
+  <div class="account-logo">📚</div>
+  <div class="account-title" id="accountTitle">建立你的帳號</div>
+  <div class="account-sub">18天養成英文習慣</div>
+  <div class="account-badge" id="accountBadge">✨ 18天免費體驗，無需信用卡</div>
+  <div class="account-form">
+    <label class="account-label">電子郵件</label>
+    <input class="account-input" id="emailInput" type="email" placeholder="your@email.com">
+    <button class="btn-account" id="accountBtn" onclick="handleAccount()">建立帳號</button>
+    <div class="account-switch" id="accountSwitch">
+      已有帳號？<span onclick="toggleAccountMode()">點此登入</span>
+    </div>
+  </div>
+</div>
+
+<!-- UX-003 Onboarding（無按鈕）-->
+<div class="onboarding" id="ob" style="display:none">
+  <div class="ob-step-indicator" id="obStepInd">選擇學習語言</div>
+  <div class="ob-title" id="obTitle">你想學哪種語言？</div>
+  <div class="ob-sub" id="obSub">點選後自動進入下一步</div>
+
+  <div id="obLangSection" style="width:100%">
+    <div class="lang-grid">
+      <div class="lang-btn" onclick="selectLang('en')">
+        <div class="lang-flag">🇺🇸</div>
+        <div class="lang-name">英文</div>
+        <div class="lang-sub">PVQC / 職場</div>
+      </div>
+      <div class="lang-btn" onclick="selectLang('ja')">
+        <div class="lang-flag">🇯🇵</div>
+        <div class="lang-name">日文</div>
+        <div class="lang-sub">動漫 / 旅遊</div>
+      </div>
+      <div class="lang-btn" onclick="selectLang('ko')">
+        <div class="lang-flag">🇰🇷</div>
+        <div class="lang-name">韓文</div>
+        <div class="lang-sub">KPOP / 韓劇</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="obLmSection" style="display:none;width:100%">
+    <div class="lm-grid" id="lmGrid"></div>
+  </div>
+</div>
+
+<!-- Header -->
+<div class="header">
+  <div>
+    <div class="header-title">📚 PVQC 職業單字</div>
+    <div class="header-sub" id="hSub">載入中...</div>
+  </div>
+  <div class="streak-badge" id="streakBadge">🔥 0天</div>
+</div>
+
+<!-- 學習頁 -->
+<div id="pageLearn" class="page active"><div id="learnContent"></div></div>
+
+<!-- 字庫包頁 -->
+<div id="pagePacks" class="page">
+  <div class="pack-section-title"><i class="ti ti-package" style="font-size:16px"></i> 已擁有的字庫包 <span style="font-size:10px;color:var(--text-sub);margin-left:auto">最多啟用 3 個</span></div>
+  <div id="ownedPackList"></div>
+  <div class="pack-section-title" style="margin-top:4px"><i class="ti ti-shopping-cart" style="font-size:16px"></i> 更多字庫包</div>
+  <input class="store-search" placeholder="🔍 搜尋字庫包..." id="storeSearch" oninput="filterStore()">
+  <div id="storePackList"></div>
+</div>
+
+<!-- 建字頁 -->
+<div id="pageBuild" class="page">
+  <div class="build-tabs">
+    <button class="build-tab active" onclick="switchBuildTab('single',this)">單獨建立</button>
+    <button class="build-tab" onclick="switchBuildTab('batch',this)">批次建立</button>
+  </div>
+  <div id="buildSingle">
+    <div class="build-notice" id="buildNotice">💡 自建單字無發音、AI例句、同義詞及動詞三態。建議購買官方字庫包取得完整功能。</div>
+    <div class="card">
+      <div class="input-group"><label class="input-label" id="bWordLabel">英文單字</label><input class="input-field" id="bWord" placeholder="如：mechanism"></div>
+      <div class="input-group"><label class="input-label" id="bPosLabel">詞性</label>
+        <select class="input-field" id="bPos"><option value="n.">n. 名詞</option><option value="v.">v. 動詞</option><option value="adj.">adj. 形容詞</option><option value="adv.">adv. 副詞</option></select>
+      </div>
+      <div class="input-group"><label class="input-label">中文翻譯</label><input class="input-field" id="bZh" placeholder="如：機構；機制"></div>
+      <div class="input-group"><label class="input-label" id="bIpaLabel">IPA音標 <span class="opt">選填</span></label><input class="input-field" id="bIpa" placeholder="如：ˈmɛk·ə·ˌnɪz·əm"></div>
+      <button class="btn-primary" onclick="saveCustomWord()">加入自建字庫</button>
+    </div>
+  </div>
+  <div id="buildBatch" style="display:none">
+    <!-- 步驟一：下載範本 -->
+    <div class="card" id="batchStep1">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">步驟 1：下載 Excel 範本</div>
+      <div style="font-size:12px;color:var(--text-sub);margin-bottom:12px;line-height:1.6;">
+        只需填入單字欄，其餘（詞性、翻譯、標音）由 AI 自動補全。
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn-primary" style="font-size:13px" onclick="downloadTemplate('en')">📥 下載英文範本</button>
+        <button class="btn-primary" style="background:var(--accent);font-size:13px" onclick="downloadTemplate('ja')">📥 下載日文範本</button>
+        <button class="btn-primary" style="background:var(--success);font-size:13px" onclick="downloadTemplate('ko')">📥 下載韓文範本</button>
+      </div>
+    </div>
+    <!-- 步驟二：上傳 Excel -->
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">步驟 2：上傳填好的 Excel</div>
+      <div style="font-size:12px;color:var(--text-sub);margin-bottom:12px;">支援 .xlsx 格式，最多 2500 個單字</div>
+      <label style="display:block;border:2px dashed var(--border);border-radius:var(--radius-sm);padding:24px;text-align:center;cursor:pointer;transition:all .2s;" id="uploadZone">
+        <input type="file" accept=".xlsx" id="batchFileInput" style="display:none" onchange="handleBatchUpload(this)">
+        <div style="font-size:28px;margin-bottom:8px;">📂</div>
+        <div style="font-size:13px;font-weight:600;color:var(--primary)">點擊選擇 Excel 檔案</div>
+        <div style="font-size:11px;color:var(--text-sub);margin-top:4px">或拖曳檔案到此處</div>
+      </label>
+      <div id="batchStatus" style="display:none;margin-top:10px;"></div>
+    </div>
+    <!-- 步驟三：預覽確認（動態顯示）-->
+    <div id="batchPreviewSection" style="display:none">
+      <div class="card">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">步驟 3：預覽確認</div>
+        <div class="input-group">
+          <label class="input-label">字庫包名稱</label>
+          <input class="input-field" id="batchPackName" placeholder="如：英文機械類2026" maxlength="20">
+          <div style="font-size:10px;color:var(--text-sub);margin-top:3px">不超過20字，不含特殊符號</div>
+        </div>
+        <div id="batchPreviewTable" style="margin:10px 0;max-height:300px;overflow-y:auto;"></div>
+        <div id="batchSummary" style="font-size:12px;color:var(--text-sub);margin-bottom:10px;"></div>
+        <button class="btn-primary" id="batchConfirmBtn" onclick="confirmBatchImport()">✅ 確認加入字庫包</button>
+        <button style="width:100%;background:var(--bg);color:var(--text-sub);border-radius:var(--radius-sm);padding:10px;font-size:13px;margin-top:8px;border:1px solid var(--border)" onclick="resetBatch()">重新上傳</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 成果頁 -->
+<div id="pageResults" class="page">
+  <div class="stats-grid" id="statsGrid"></div>
+  <div id="statsLm"></div>
+  <!-- F-033 各語言進度總覽 -->
+  <div id="allLangsProgress"></div>
+  <div class="card" style="margin-top:4px">
+    <div style="font-size:13px;font-weight:700;color:var(--text-sub);">📲 分享今日成果</div>
+    <div class="share-btns">
+      <button class="btn-line" onclick="openShareModal()">💬 LINE / FB 分享</button>
+      <button class="btn-copy" onclick="copyShareText()">📋 複製文字</button>
+      <button class="btn-ig" onclick="shareIG()">📸 儲存圖片（IG用）</button>
+      <button class="btn-qr" onclick="toggleQR()">📲 分享 App + QR Code</button>
+    </div>
+    <div class="qr-section" id="qrSection">
+      <div class="qr-url">https://pvqc-vocab.vercel.app</div>
+      <div id="qrcode"></div>
+      <!-- UI-009 同時說明 iPhone 和 Android -->
+      <div class="qr-hint">
+        📱 <strong>iPhone</strong>：Safari → 分享 → 加入主畫面<br>
+        📱 <strong>Android</strong>：Chrome → 選單（⋮）→ 加入主畫面
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 設定頁 -->
+<div id="pageSettings" class="page">
+  <div class="card" style="padding:12px 14px;margin-bottom:10px;">
+    <div style="font-size:13px;font-weight:700;color:var(--text-sub);margin-bottom:10px;">🎨 主題色</div>
+    <div class="theme-row">
+      <div class="theme-dot" data-t="A" style="background:#2563EB" onclick="setTheme('A')"></div>
+      <div class="theme-dot active" data-t="B" style="background:#7C3AED" onclick="setTheme('B')"></div>
+      <div class="theme-dot" data-t="C" style="background:#059669" onclick="setTheme('C')"></div>
+      <div class="theme-dot" data-t="D" style="background:#E11D48" onclick="setTheme('D')"></div>
+    </div>
+  </div>
+  <div class="setting-card">
+    <div class="setting-item">
+      <div><div class="setting-label">每日單字數</div><div class="setting-sub">10–50 個</div></div>
+      <div class="ctrl">
+        <button class="cnt-btn" onclick="adj('dailyLimit',-1)">−</button>
+        <span class="cnt-val" id="vDL">10</span>
+        <button class="cnt-btn" onclick="adj('dailyLimit',1)">＋</button>
+      </div>
+    </div>
+    <div class="setting-item">
+      <div><div class="setting-label">自動前進</div><div class="setting-sub">看答案後2秒自動下一字</div></div>
+      <div class="toggle" id="togAuto" onclick="togS('autoAdvance')"></div>
+    </div>
+    <div class="setting-item">
+      <div><div class="setting-label">AI 例句</div><div class="setting-sub">按熟悉後顯示（需API Key）</div></div>
+      <div class="toggle on" id="togAI" onclick="togS('aiExample')"></div>
+    </div>
+    <!-- F-039 發音速度（全域預設） -->
+    <div class="setting-item">
+      <div><div class="setting-label">發音速度預設</div><div class="setting-sub">所有單字的預設發音速度<br>學習區可針對單字臨時調整</div></div>
+      <div class="ctrl">
+        <button class="lang-switch-btn" id="spd05" style="padding:5px 10px;min-width:44px" onclick="setSpeechRate(0.5)">0.5x</button>
+        <button class="lang-switch-btn active" id="spd10" style="padding:5px 10px;min-width:44px" onclick="setSpeechRate(1)">1x</button>
+        <button class="lang-switch-btn" id="spd15" style="padding:5px 10px;min-width:44px" onclick="setSpeechRate(1.5)">1.5x</button>
+      </div>
+    </div>
+  </div>
+  <!-- F-027 語言切換 -->
+  <div class="setting-card">
+    <div class="setting-item" style="flex-direction:column;align-items:flex-start;">
+      <div style="margin-bottom:8px"><div class="setting-label">學習語言切換</div><div class="setting-sub">點選切換，各語言進度獨立保留</div></div>
+      <div class="lang-switch-row" id="langSwitchRow">
+        <div class="lang-switch-btn" data-lang="en" onclick="switchLang('en')">🇺🇸 英文</div>
+        <div class="lang-switch-btn" data-lang="ja" onclick="switchLang('ja')">🇯🇵 日文</div>
+        <div class="lang-switch-btn" data-lang="ko" onclick="switchLang('ko')">🇰🇷 韓文</div>
+      </div>
+    </div>
+    <div class="setting-item">
+      <div>
+        <div class="setting-label">地標選擇</div>
+        <div class="setting-sub" id="curLmLabel">未選擇</div>
+        <div style="font-size:10px;color:var(--text-sub);margin-top:3px;line-height:1.5;">更換地標不影響單字學習進度<br>爬升高度依新地標總高自動重新計算</div>
+      </div>
+      <button style="background:var(--primary-light);color:var(--primary);border-radius:99px;padding:5px 12px;font-size:12px;font-weight:600" onclick="showLmSelect()">更換</button>
+    </div>
+  </div>
+  <div class="card">
+    <div style="font-size:11px;color:var(--text-sub);margin-bottom:8px;line-height:1.6;">清除當前語言所有單字的 SRS 記錄<br>重新從零開始學習（此操作無法復原）</div>
+    <button style="width:100%;background:var(--danger-light);color:var(--danger);border-radius:var(--radius-sm);padding:11px;font-size:13px;font-weight:600" onclick="openModal('resetModal')">🗑 重置學習進度</button>
+  </div>
+  <!-- F-032 登出 -->
+  <div class="card" style="margin-top:4px">
+    <div style="font-size:11px;color:var(--text-sub);margin-bottom:8px" id="currentEmailLabel"></div>
+    <button style="width:100%;background:var(--bg);color:var(--text-sub);border-radius:var(--radius-sm);padding:11px;font-size:13px;font-weight:600;border:1px solid var(--border)" onclick="openModal('logoutModal')">登出帳號</button>
+  </div>
+</div>
+
+<!-- Nav -->
+<nav class="nav">
+  <button class="nav-btn" onclick="goPage('Build',this)"><i class="ti ti-pencil-plus"></i>建字</button>
+  <button class="nav-btn" onclick="goPage('Packs',this)"><i class="ti ti-package"></i>字庫包</button>
+  <button class="nav-btn active" onclick="goPage('Learn',this)"><i class="ti ti-book-2"></i>學習</button>
+  <button class="nav-btn" onclick="goPage('Results',this)"><i class="ti ti-trophy"></i>成果</button>
+  <button class="nav-btn" onclick="goPage('Settings',this)"><i class="ti ti-settings"></i>設定</button>
+</nav>
+
+<!-- Modals -->
+<div class="modal-overlay" id="reportModal">
+  <div class="modal-box">
+    <div class="modal-title">⚑ 回報錯誤</div>
+    <button class="modal-opt" onclick="submitReport('音標錯誤')">🔤 音標錯誤</button>
+    <button class="modal-opt" onclick="submitReport('翻譯錯誤')">📝 翻譯錯誤</button>
+    <button class="modal-opt" onclick="submitReport('例句不當')">💬 例句不當</button>
+    <button class="modal-opt" onclick="submitReport('其他')">❓ 其他</button>
+    <button class="btn-cancel" onclick="closeModal('reportModal')">取消</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal-box">
+    <div class="modal-title">🗑 確認刪除字庫包</div>
+    <div class="modal-warning">刪除後此字庫包將從裝置移除。<br><strong>日後重新下載需再次付費。</strong></div>
+    <button class="btn-danger" onclick="confirmDelete()">確定刪除</button>
+    <button class="btn-cancel" onclick="closeModal('deleteModal')">取消，保留</button>
+  </div>
+</div>
+
+<!-- UI-008 重置自訂Modal -->
+<!-- F-032 登出Modal -->
+<div class="modal-overlay" id="logoutModal">
+  <div class="modal-box">
+    <div class="modal-title">登出帳號</div>
+    <div class="modal-warning">確定要登出嗎？<br>學習進度將保留在本機，<br>下次用相同 Email 登入可繼續。</div>
+    <button class="btn-danger" onclick="confirmLogout()">確定登出</button>
+    <button class="btn-cancel" onclick="closeModal('logoutModal')">取消</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="resetModal">
+  <div class="modal-box">
+    <div class="modal-title">🗑 重置學習進度</div>
+    <div class="modal-warning">確定要重置目前語言的所有學習進度嗎？<br><strong>此操作無法復原。</strong><br>其他語言的進度不受影響。</div>
+    <button class="btn-danger" onclick="confirmReset()">確定重置</button>
+    <button class="btn-cancel" onclick="closeModal('resetModal')">取消</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="shareModal">
+  <div class="modal-box">
+    <div class="modal-title">📲 分享預覽</div>
+    <div class="share-preview" id="sharePreview"></div>
+    <button class="btn-primary" onclick="doShare()" style="margin-bottom:8px">分享到 LINE / FB</button>
+    <button class="btn-cancel" onclick="closeModal('shareModal')">取消</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="unknownModal">
+  <div class="modal-box">
+    <div class="modal-title">❌ 今日不熟單字</div>
+    <div id="unknownListContent"></div>
+    <button class="btn-cancel" onclick="closeModal('unknownModal')">關閉</button>
+  </div>
+</div>
+
+<!-- UI-006 浮層 -->
+<div class="popup-overlay" id="popupOverlay" onclick="closePopup()">
+  <div class="popup-box" id="popupBox">
+    <div class="popup-title" id="popupTitle"></div>
+    <div id="popupContent"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const APP_URL='https://pvqc-vocab.vercel.app';
+const CLAUDE_API='https://api.anthropic.com/v1/messages';
+
+const LANGS={
+  en:{name:'英文',flag:'🇺🇸',tts:'en-US'},
+  ja:{name:'日文',flag:'🇯🇵',tts:'ja-JP'},
+  ko:{name:'韓文',flag:'🇰🇷',tts:'ko-KR'},
+};
+
+// F-022 地標資料
+const LMS={
+  en:[
+    {id:'t101',name:'台北101',emoji:'🏙',unit:'m',total:509,tag:'台灣',milestones:[{pct:.2,label:'100m',desc:'進入台北天際線'},{pct:.5,label:'255m',desc:'超越大多數台北建物'},{pct:.8,label:'407m',desc:'觀景台，俯瞰台北盆地'},{pct:1,label:'登頂！509m',desc:'台灣第一高樓 🏙'}]},
+    {id:'t85',name:'高雄85大樓',emoji:'🌆',unit:'m',total:378,tag:'台灣',milestones:[{pct:.3,label:'113m',desc:'南台灣天際線起點'},{pct:.7,label:'265m',desc:'俯瞰高雄港灣'},{pct:1,label:'登頂！378m',desc:'南台灣制高點 🌆'}]},
+    {id:'topera',name:'台中國家歌劇院',emoji:'🎭',unit:'m',total:36,tag:'台灣',milestones:[{pct:.5,label:'18m',desc:'曲牆交織，建築奇蹟'},{pct:1,label:'登頂！36m',desc:'世界最複雜建築之一 🎭'}]},
+    {id:'tredfort',name:'淡水紅毛城',emoji:'🏰',unit:'m',total:10,tag:'台灣',milestones:[{pct:1,label:'登頂！10m',desc:'四百年歷史的見證 🏰'}]},
+    {id:'tjiufen',name:'九份老街',emoji:'🏮',unit:'m',total:180,tag:'台灣',milestones:[{pct:.3,label:'54m',desc:'開始爬上山城石階'},{pct:.7,label:'126m',desc:'俯瞰基隆山與海'},{pct:1,label:'登頂！180m',desc:'千燈閃爍，宮崎駿靈感 🏮'}]},
+    {id:'empire',name:'帝國大廈',emoji:'🗽',unit:'m',total:443,tag:'美國',milestones:[{pct:.25,label:'111m',desc:'進入紐約天際線'},{pct:.86,label:'381m',desc:'86樓觀景台，俯瞰曼哈頓'},{pct:1,label:'登頂！443m',desc:'King Kong的舞台 🗽'}]},
+    {id:'bigben',name:'大本鐘',emoji:'🕰',unit:'m',total:96,tag:'英國',milestones:[{pct:.4,label:'38m',desc:'進入塔樓石階'},{pct:1,label:'登頂！96m',desc:'聽見西敏寺的鐘聲 🕰'}]},
+    {id:'eiffel',name:'艾菲爾鐵塔',emoji:'🗼',unit:'m',total:330,tag:'法國',milestones:[{pct:.17,label:'57m',desc:'第一層，巴黎視野初現'},{pct:.36,label:'115m',desc:'第二層，香榭大道盡收眼底'},{pct:1,label:'登頂！330m',desc:'巴黎的心臟 🗼'}]},
+    {id:'liberty',name:'自由女神像',emoji:'🗿',unit:'m',total:93,tag:'美國',milestones:[{pct:1,label:'登頂！93m',desc:'自由的象徵 🗿'}]},
+    {id:'pisa',name:'比薩斜塔',emoji:'🏛',unit:'m',total:56,tag:'義大利',milestones:[{pct:1,label:'登頂！56m',desc:'伽利略的實驗場 🏛'}]},
+  ],
+  ja:[
+    {id:'fuji',name:'富士山',emoji:'🗻',unit:'m',total:3776,tag:'靜岡',milestones:[{pct:.13,label:'5合目 2305m',desc:'登山客集合點'},{pct:.4,label:'7合目 3000m',desc:'進入雲層'},{pct:.72,label:'御來光 3450m',desc:'傳說中的日出聖地'},{pct:1,label:'登頂！劍峰 3776m',desc:'日本靈魂所在 🗻'}]},
+    {id:'skytree',name:'東京晴空塔',emoji:'🏯',unit:'m',total:634,tag:'東京',milestones:[{pct:.55,label:'第一展望台 350m',desc:'東京360度全景'},{pct:.85,label:'第二展望台 450m',desc:'晴天可見富士山'},{pct:1,label:'天望回廊 634m',desc:'世界第二高塔 🏯'}]},
+    {id:'tokyotower',name:'東京鐵塔',emoji:'🗼',unit:'m',total:333,tag:'東京',milestones:[{pct:.45,label:'大展望台 150m',desc:'昭和時代的驕傲'},{pct:1,label:'特別展望台 333m',desc:'日本戰後復興象徵 🗼'}]},
+    {id:'yokohama',name:'橫濱地標塔',emoji:'🌃',unit:'m',total:296,tag:'橫濱',milestones:[{pct:.5,label:'148m',desc:'橫濱港灣盡收眼底'},{pct:1,label:'登頂！296m',desc:'港灣城市的守護者 🌃'}]},
+    {id:'sapporo',name:'札幌電視塔',emoji:'❄️',unit:'m',total:147,tag:'北海道',milestones:[{pct:1,label:'登頂！147m',desc:'北海道的地標 ❄️'}]},
+    {id:'himeji',name:'姬路城',emoji:'🏯',unit:'m',total:46,tag:'兵庫',milestones:[{pct:1,label:'登頂！46m',desc:'世界遺產，白鷺城 🏯'}]},
+    {id:'osaka',name:'大阪城',emoji:'🏯',unit:'m',total:58,tag:'大阪',milestones:[{pct:1,label:'登頂！58m',desc:'大阪的歷史心臟 🏯'}]},
+    {id:'kinkakuji',name:'金閣寺',emoji:'⛩',unit:'m',total:13,tag:'京都',milestones:[{pct:1,label:'頂層 12.5m',desc:'金光閃閃，映照鏡湖池 ⛩'}]},
+    {id:'itsukushima',name:'嚴島神社鳥居',emoji:'⛩',unit:'m',total:16,tag:'廣島',milestones:[{pct:1,label:'頂端 16m',desc:'海上漂浮的神社 ⛩'}]},
+    {id:'nara',name:'奈良大佛',emoji:'🙏',unit:'m',total:15,tag:'奈良',milestones:[{pct:1,label:'佛頂 14.7m',desc:'千年守護，世界最大青銅佛 🙏'}]},
+  ],
+  ko:[
+    {id:'lotte',name:'樂天世界塔',emoji:'🏙',unit:'m',total:555,tag:'首爾',milestones:[{pct:.3,label:'166m',desc:'首爾夢想起點'},{pct:.6,label:'333m',desc:'N首爾塔同高'},{pct:.9,label:'500m',desc:'進入雲端'},{pct:1,label:'SEOUL SKY 555m',desc:'韓國最高，世界第5 🏙'}]},
+    {id:'namsan',name:'南山首爾塔',emoji:'⛩',unit:'m',total:479,tag:'首爾',milestones:[{pct:.25,label:'海拔 120m',desc:'南山山腰，纜車終點'},{pct:.6,label:'海拔 289m',desc:'愛情鎖之丘'},{pct:1,label:'天線頂 479m',desc:'K-pop聖地 ⛩'}]},
+    {id:'halla',name:'漢拿山',emoji:'🌋',unit:'m',total:1950,tag:'濟州',milestones:[{pct:.3,label:'585m',desc:'濟州森林'},{pct:.6,label:'1170m',desc:'進入雲霧'},{pct:1,label:'登頂！1950m',desc:'韓國最高峰 🌋'}]},
+    {id:'incheon',name:'仁川大橋',emoji:'🌉',unit:'m',total:74,tag:'仁川',milestones:[{pct:1,label:'主塔 74m',desc:'韓國現代工程奇蹟 🌉'}]},
+    {id:'myeongdong',name:'明洞聖堂',emoji:'⛪',unit:'m',total:45,tag:'首爾',milestones:[{pct:1,label:'塔頂 45m',desc:'首爾百年地標 ⛪'}]},
+    {id:'bulguksa',name:'慶州佛國寺',emoji:'🏯',unit:'m',total:22,tag:'慶州',milestones:[{pct:1,label:'大雄殿 22m',desc:'新羅王朝靈魂 🏯'}]},
+    {id:'gyeongbokgung',name:'景福宮',emoji:'🏯',unit:'m',total:19,tag:'首爾',milestones:[{pct:1,label:'勤政殿 19m',desc:'朝鮮王朝五百年 🏯'}]},
+    {id:'gwanghwamun',name:'光化門',emoji:'🏯',unit:'m',total:19,tag:'首爾',milestones:[{pct:1,label:'門樓 19m',desc:'首爾的象徵門戶 🏯'}]},
+    {id:'bukchon',name:'北村韓屋村',emoji:'🏘',unit:'m',total:50,tag:'首爾',milestones:[{pct:1,label:'山頂 50m',desc:'首爾最美傳統風景 🏘'}]},
+    {id:'haeundae',name:'釜山海雲台',emoji:'🏖',unit:'m',total:40,tag:'釜山',milestones:[{pct:1,label:'觀景點 40m',desc:'釜山最美海岸線 🏖'}]},
+  ],
+};
+
+// 字庫包
+// ===== 字庫包：從 GitHub 動態載入 =====
+// Beta 1.013：OFFICIAL_PACKS 改為外部 packs.json，不再寫死在 HTML
+const PACKS_JSON_URL = 'https://raw.githubusercontent.com/suolu211/pvqc-packs/main/packs.json';
+let OFFICIAL_PACKS = []; // 啟動時從 GitHub 載入，載入前為空陣列
+
+async function loadOfficialPacks() {
+  try {
+    const resp = await fetch(PACKS_JSON_URL + '?t=' + Date.now()); // 防快取
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    // 相容兩種格式：直接陣列 或 {packs:[...]} 物件
+    OFFICIAL_PACKS = Array.isArray(data) ? data : (data.packs || []);
+    // 把 GitHub 格式欄位對應到 App 格式
+    OFFICIAL_PACKS = OFFICIAL_PACKS.map(p => ({
+      ...p,
+      lang     : p.lang || 'en',
+      verified : p.verified !== false,
+      cat      : p.cat || '',
+      words    : (p.words || []).map(w => ({
+        id   : w.id   || w.word,
+        en   : w.en   || w.word,
+        syl  : w.syl  || w.reading || '',
+        ipa  : w.syl  || w.reading || '',
+        pos  : w.pos  || '',
+        zh   : w.zh   || '',
+        exEn : w.exEn || '',
+        exZh : w.exZh || '',
+        syns : w.syns || null,
+        verb3: w.verb3 || null,
+      })),
+    }));
+    console.log('字庫包載入完成，共 ' + OFFICIAL_PACKS.length + ' 個');
+  } catch (e) {
+    console.warn('無法載入外部字庫包，使用內建備用包：' + e.message);
+    OFFICIAL_PACKS = FALLBACK_PACKS; // 載入失敗時用備用包
+  }
+}
+
+// 備用字庫包（網路失敗時使用，保留原有內建包）
+const FALLBACK_PACKS=[
+  {id:'mechanical',name:'機械群',cat:'技職類',verified:true,price:0,words:[
+    {id:'m001',en:'mechanism',syl:'mech·a·nism',ipa:'ˈmɛk·ə·ˌnɪz·əm',pos:'n.',zh:'機構；機制',syns:['device','apparatus','system'],verb3:null},
+    {id:'m002',en:'torque',syl:'torque',ipa:'tɔːrk',pos:'n.',zh:'扭矩；轉矩',syns:['twist force','rotation force'],verb3:null},
+    {id:'m003',en:'hydraulic',syl:'hy·drau·lic',ipa:'haɪˈdrɔː·lɪk',pos:'adj.',zh:'液壓的；水力的',syns:['fluid-powered','water-driven'],verb3:null},
+    {id:'m004',en:'conveyor',syl:'con·vey·or',ipa:'kənˈveɪ·ər',pos:'n.',zh:'輸送帶；傳送機',syns:['belt','transporter'],verb3:null},
+    {id:'m005',en:'calibrate',syl:'cal·i·brate',ipa:'ˈkæl·ɪ·breɪt',pos:'v.',zh:'校準；標定',syns:['adjust','standardize','set'],verb3:{v1:'calibrate',v2:'calibrated',v3:'calibrated'}},
+    {id:'m006',en:'tolerance',syl:'tol·er·ance',ipa:'ˈtɒl·ər·əns',pos:'n.',zh:'公差；容許誤差',syns:['allowance','margin','deviation'],verb3:null},
+    {id:'m007',en:'bearing',syl:'bear·ing',ipa:'ˈbɛr·ɪŋ',pos:'n.',zh:'軸承',syns:['support','mount'],verb3:null},
+    {id:'m008',en:'pneumatic',syl:'pneu·mat·ic',ipa:'njuːˈmæt·ɪk',pos:'adj.',zh:'氣動的；氣壓的',syns:['air-powered','compressed-air'],verb3:null},
+    {id:'m009',en:'lubrication',syl:'lu·bri·ca·tion',ipa:'ˌluː·brɪˈkeɪ·ʃən',pos:'n.',zh:'潤滑；潤滑作用',syns:['oiling','greasing'],verb3:null},
+    {id:'m010',en:'specification',syl:'spec·i·fi·ca·tion',ipa:'ˌspɛs·ɪ·fɪˈkeɪ·ʃən',pos:'n.',zh:'規格；規範',syns:['standard','requirement','criterion'],verb3:null},
+  ]},
+  {id:'electrical',name:'電機群',cat:'技職類',verified:true,price:0,words:[
+    {id:'e001',en:'circuit',syl:'cir·cuit',ipa:'ˈsɜː·kɪt',pos:'n.',zh:'電路；回路',syns:['loop','network','path'],verb3:null},
+    {id:'e002',en:'voltage',syl:'volt·age',ipa:'ˈvoʊl·tɪdʒ',pos:'n.',zh:'電壓；伏特數',syns:['potential','EMF'],verb3:null},
+    {id:'e003',en:'semiconductor',syl:'sem·i·con·duc·tor',ipa:'ˌsɛm·i·kənˈdʌk·tər',pos:'n.',zh:'半導體',syns:['transistor material'],verb3:null},
+  ]},
+  {id:'civil',name:'土木群',cat:'技職類',lang:'en',verified:true,price:0,words:[
+    {id:'c001',en:'foundation',syl:'foun·da·tion',ipa:'faʊnˈdeɪ·ʃən',pos:'n.',zh:'基礎；地基',syns:['base','footing','groundwork'],verb3:null},
+    {id:'c002',en:'excavation',syl:'ex·ca·va·tion',ipa:'ˌɛk·skəˈveɪ·ʃən',pos:'n.',zh:'挖掘；開挖',syns:['digging','trenching'],verb3:null},
+  ]},
+  // F-029 日文字庫包
+  {id:'ja_work',name:'日文職場基礎',cat:'職場類',lang:'ja',verified:true,price:0,words:[
+    {id:'jw01',en:'機械',syl:'き·か·い',ipa:'きかい',pos:'n.',zh:'機械；機器',syns:null,verb3:null},
+    {id:'jw02',en:'工場',syl:'こう·じょう',ipa:'こうじょう',pos:'n.',zh:'工廠',syns:null,verb3:null},
+    {id:'jw03',en:'製品',syl:'せい·ひん',ipa:'せいひん',pos:'n.',zh:'產品',syns:null,verb3:null},
+    {id:'jw04',en:'品質',syl:'ひん·しつ',ipa:'ひんしつ',pos:'n.',zh:'品質',syns:null,verb3:null},
+    {id:'jw05',en:'安全',syl:'あん·ぜん',ipa:'あんぜん',pos:'n.',zh:'安全',syns:null,verb3:null},
+    {id:'jw06',en:'管理',syl:'かん·り',ipa:'かんり',pos:'n.',zh:'管理',syns:null,verb3:null},
+    {id:'jw07',en:'作業',syl:'さ·ぎょう',ipa:'さぎょう',pos:'n.',zh:'作業；工作',syns:null,verb3:null},
+    {id:'jw08',en:'点検',syl:'てん·けん',ipa:'てんけん',pos:'n.',zh:'檢查；點檢',syns:null,verb3:null},
+    {id:'jw09',en:'修理',syl:'しゅう·り',ipa:'しゅうり',pos:'n.',zh:'修理',syns:null,verb3:null},
+    {id:'jw10',en:'電気',syl:'でん·き',ipa:'でんき',pos:'n.',zh:'電力；電氣',syns:null,verb3:null},
+  ]},
+  {id:'ja_n5',name:'JLPT N5 基礎',cat:'考試類',lang:'ja',verified:true,price:0,words:[
+    {id:'jn01',en:'学校',syl:'がっ·こう',ipa:'がっこう',pos:'n.',zh:'學校',syns:null,verb3:null},
+    {id:'jn02',en:'先生',syl:'せん·せい',ipa:'せんせい',pos:'n.',zh:'老師',syns:null,verb3:null},
+    {id:'jn03',en:'友達',syl:'とも·だち',ipa:'ともだち',pos:'n.',zh:'朋友',syns:null,verb3:null},
+    {id:'jn04',en:'食べる',syl:'た·べ·る',ipa:'たべる',pos:'v.',zh:'吃',syns:null,verb3:{v1:'食べる',v2:'食べた',v3:'食べた'}},
+    {id:'jn05',en:'飲む',syl:'の·む',ipa:'のむ',pos:'v.',zh:'喝；飲',syns:null,verb3:{v1:'飲む',v2:'飲んだ',v3:'飲んだ'}},
+    {id:'jn06',en:'大きい',syl:'おお·き·い',ipa:'おおきい',pos:'adj.',zh:'大的',syns:null,verb3:null},
+    {id:'jn07',en:'小さい',syl:'ちい·さ·い',ipa:'ちいさい',pos:'adj.',zh:'小的',syns:null,verb3:null},
+    {id:'jn08',en:'今日',syl:'きょう',ipa:'きょう',pos:'n.',zh:'今天',syns:null,verb3:null},
+    {id:'jn09',en:'明日',syl:'あ·し·た',ipa:'あした',pos:'n.',zh:'明天',syns:null,verb3:null},
+    {id:'jn10',en:'何',syl:'な·に',ipa:'なに',pos:'pron.',zh:'什麼',syns:null,verb3:null},
+  ]},
+  {id:'ja_life',name:'日文生活常用',cat:'生活類',lang:'ja',verified:true,price:0,words:[
+    {id:'jl01',en:'ありがとう',syl:'あ·り·が·と·う',ipa:'ありがとう',pos:'expr.',zh:'謝謝',syns:null,verb3:null},
+    {id:'jl02',en:'すみません',syl:'す·み·ま·せ·ん',ipa:'すみません',pos:'expr.',zh:'不好意思',syns:null,verb3:null},
+    {id:'jl03',en:'はい',syl:'は·い',ipa:'はい',pos:'interj.',zh:'是的',syns:null,verb3:null},
+    {id:'jl04',en:'いいえ',syl:'い·い·え',ipa:'いいえ',pos:'interj.',zh:'不是',syns:null,verb3:null},
+    {id:'jl05',en:'駅',syl:'え·き',ipa:'えき',pos:'n.',zh:'車站',syns:null,verb3:null},
+    {id:'jl06',en:'電車',syl:'でん·しゃ',ipa:'でんしゃ',pos:'n.',zh:'電車',syns:null,verb3:null},
+    {id:'jl07',en:'店',syl:'み·せ',ipa:'みせ',pos:'n.',zh:'店；商店',syns:null,verb3:null},
+    {id:'jl08',en:'水',syl:'み·ず',ipa:'みず',pos:'n.',zh:'水',syns:null,verb3:null},
+    {id:'jl09',en:'時間',syl:'じ·かん',ipa:'じかん',pos:'n.',zh:'時間',syns:null,verb3:null},
+    {id:'jl10',en:'お願いします',syl:'お·ね·が·い',ipa:'おねがいします',pos:'expr.',zh:'請；拜託',syns:null,verb3:null},
+  ]},
+  // F-030 韓文字庫包
+  {id:'ko_work',name:'韓文職場基礎',cat:'職場類',lang:'ko',verified:true,price:0,words:[
+    {id:'kw01',en:'기계',syl:'기·계',ipa:'gi-gye',pos:'n.',zh:'機械；機器',syns:null,verb3:null},
+    {id:'kw02',en:'공장',syl:'공·장',ipa:'gong-jang',pos:'n.',zh:'工廠',syns:null,verb3:null},
+    {id:'kw03',en:'제품',syl:'제·품',ipa:'je-pum',pos:'n.',zh:'產品',syns:null,verb3:null},
+    {id:'kw04',en:'품질',syl:'품·질',ipa:'pum-jil',pos:'n.',zh:'品質',syns:null,verb3:null},
+    {id:'kw05',en:'안전',syl:'안·전',ipa:'an-jeon',pos:'n.',zh:'安全',syns:null,verb3:null},
+    {id:'kw06',en:'관리',syl:'관·리',ipa:'gwal-li',pos:'n.',zh:'管理',syns:null,verb3:null},
+    {id:'kw07',en:'작업',syl:'작·업',ipa:'ja-geop',pos:'n.',zh:'作業；工作',syns:null,verb3:null},
+    {id:'kw08',en:'점검',syl:'점·검',ipa:'jeom-geom',pos:'n.',zh:'檢查',syns:null,verb3:null},
+    {id:'kw09',en:'수리',syl:'수·리',ipa:'su-ri',pos:'n.',zh:'修理',syns:null,verb3:null},
+    {id:'kw10',en:'전기',syl:'전·기',ipa:'jeon-gi',pos:'n.',zh:'電力；電氣',syns:null,verb3:null},
+  ]},
+  {id:'ko_topik',name:'TOPIK 初級基礎',cat:'考試類',lang:'ko',verified:true,price:0,words:[
+    {id:'kt01',en:'학교',syl:'학·교',ipa:'hak-gyo',pos:'n.',zh:'學校',syns:null,verb3:null},
+    {id:'kt02',en:'선생님',syl:'선·생·님',ipa:'seon-saeng-nim',pos:'n.',zh:'老師',syns:null,verb3:null},
+    {id:'kt03',en:'친구',syl:'친·구',ipa:'chin-gu',pos:'n.',zh:'朋友',syns:null,verb3:null},
+    {id:'kt04',en:'먹다',syl:'먹·다',ipa:'meok-da',pos:'v.',zh:'吃',syns:null,verb3:{v1:'먹다',v2:'먹었다',v3:'먹은'}},
+    {id:'kt05',en:'마시다',syl:'마·시·다',ipa:'ma-si-da',pos:'v.',zh:'喝',syns:null,verb3:{v1:'마시다',v2:'마셨다',v3:'마신'}},
+    {id:'kt06',en:'크다',syl:'크·다',ipa:'keu-da',pos:'adj.',zh:'大的',syns:null,verb3:null},
+    {id:'kt07',en:'작다',syl:'작·다',ipa:'jak-da',pos:'adj.',zh:'小的',syns:null,verb3:null},
+    {id:'kt08',en:'오늘',syl:'오·늘',ipa:'o-neul',pos:'n.',zh:'今天',syns:null,verb3:null},
+    {id:'kt09',en:'내일',syl:'내·일',ipa:'nae-il',pos:'n.',zh:'明天',syns:null,verb3:null},
+    {id:'kt10',en:'무엇',syl:'무·엇',ipa:'mu-eot',pos:'pron.',zh:'什麼',syns:null,verb3:null},
+  ]},
+  {id:'ko_life',name:'韓文生活常用',cat:'生活類',lang:'ko',verified:true,price:0,words:[
+    {id:'kl01',en:'감사합니다',syl:'감·사·합·니·다',ipa:'gam-sa-ham-ni-da',pos:'expr.',zh:'謝謝',syns:null,verb3:null},
+    {id:'kl02',en:'죄송합니다',syl:'죄·송·합·니·다',ipa:'joe-song-ham-ni-da',pos:'expr.',zh:'對不起',syns:null,verb3:null},
+    {id:'kl03',en:'네',syl:'네',ipa:'ne',pos:'interj.',zh:'是的',syns:null,verb3:null},
+    {id:'kl04',en:'아니요',syl:'아·니·요',ipa:'a-ni-yo',pos:'interj.',zh:'不是',syns:null,verb3:null},
+    {id:'kl05',en:'역',syl:'역',ipa:'yeok',pos:'n.',zh:'車站',syns:null,verb3:null},
+    {id:'kl06',en:'지하철',syl:'지·하·철',ipa:'ji-ha-cheol',pos:'n.',zh:'地鐵',syns:null,verb3:null},
+    {id:'kl07',en:'가게',syl:'가·게',ipa:'ga-ge',pos:'n.',zh:'店；商店',syns:null,verb3:null},
+    {id:'kl08',en:'물',syl:'물',ipa:'mul',pos:'n.',zh:'水',syns:null,verb3:null},
+    {id:'kl09',en:'시간',syl:'시·간',ipa:'si-gan',pos:'n.',zh:'時間',syns:null,verb3:null},
+    {id:'kl10',en:'부탁합니다',syl:'부·탁·합·니·다',ipa:'bu-tak-ham-ni-da',pos:'expr.',zh:'請；拜託',syns:null,verb3:null},
+  ]},
+];  // end FALLBACK_PACKS
+
+const STORE_PACKS=[
+  // 英文付費包
+  {id:'gre3000',name:'GRE核心字彙 3000',cat:'考試類',lang:'en',verified:true,price:299,words:3000,rating:4.9,buyers:1234},
+  {id:'toeic2000',name:'TOEIC職場英文 2000',cat:'考試類',lang:'en',verified:true,price:249,words:2000,rating:4.8,buyers:876},
+  {id:'nursing',name:'護理群專業英文',cat:'技職類',lang:'en',verified:true,price:299,words:2500,rating:4.7,buyers:543},
+  {id:'chemical',name:'化工群專業英文',cat:'技職類',lang:'en',verified:true,price:299,words:2500,rating:4.6,buyers:321},
+  // 日文付費包
+  {id:'jlpt_n4',name:'JLPT N4 進階',cat:'考試類',lang:'ja',verified:true,price:249,words:1500,rating:4.8,buyers:432},
+  {id:'ja_business',name:'日文商務會話',cat:'職場類',lang:'ja',verified:true,price:299,words:2000,rating:4.7,buyers:287},
+  {id:'ja_anime',name:'日文動漫用語',cat:'生活類',lang:'ja',verified:true,price:199,words:1000,rating:4.6,buyers:651},
+  // 韓文付費包
+  {id:'topik2',name:'TOPIK 中級',cat:'考試類',lang:'ko',verified:true,price:249,words:1500,rating:4.8,buyers:398},
+  {id:'ko_kpop',name:'韓文K-pop用語',cat:'生活類',lang:'ko',verified:true,price:199,words:800,rating:4.9,buyers:723},
+  {id:'ko_business',name:'韓文商務會話',cat:'職場類',lang:'ko',verified:true,price:299,words:2000,rating:4.7,buyers:215},
+];
+
+const SRS_INTERVALS=[0,3,7,14,30];
+const MASTER_THRESHOLD=5;
+const SETTING_CFG={dailyLimit:{min:10,max:50}};
+
+// UX-004 多語言進度獨立儲存結構
+let G={
+  account:{email:'',isNew:true},
+  currentLang:'en',
+  theme:'B',
+  settings:{dailyLimit:10,aiExample:true,autoAdvance:false,speechRate:1},
+  customWords:[],
+  langs:{
+    en:{progress:{},todayStats:{known:0,unknown:0,date:'',unknownWords:[]},landmark:'t101',streak:0,lastStudy:'',activePacks:['mechanical'],landmarkProgress:{masteredTotal:0}},
+    ja:{progress:{},todayStats:{known:0,unknown:0,date:'',unknownWords:[]},landmark:'fuji',streak:0,lastStudy:'',activePacks:[],landmarkProgress:{masteredTotal:0}},
+    ko:{progress:{},todayStats:{known:0,unknown:0,date:'',unknownWords:[]},landmark:'lotte',streak:0,lastStudy:'',activePacks:[],landmarkProgress:{masteredTotal:0}},
+  },
+};
+
+let queue=[],idx=0,curWord=null;
+let pendingDeleteId=null;
+let autoAdvanceTimer=null;
+let apiKey=null;
+let accountMode='new'; // 'new' or 'login'
+let speechFailCount=0; // F-037 口說失敗次數
+let curWordRate=null;  // F-039 當前單字臨時速度（null=使用全域預設）
+
+function getLang(){return G.langs[G.currentLang]||G.langs.en;}
+function loadG(){try{const s=localStorage.getItem('pvqc_g6');if(s)G={...G,...JSON.parse(s)};}catch(e){} apiKey=localStorage.getItem('pvqc_api_key')||null;}
+function saveG(){try{localStorage.setItem('pvqc_g6',JSON.stringify(G));}catch(e){}}
+
+async function init(){
+  loadG();applyTheme(G.theme);
+  setTimeout(()=>{try{new QRCode(document.getElementById('qrcode'),{text:APP_URL,width:130,height:130,colorDark:'#000',colorLight:'#fff'});}catch(e){}},500);
+  // Beta 1.013：先載入外部字庫包，再進入 App
+  await loadOfficialPacks();
+  // B-007：有Email記錄→自動登入，無→顯示帳號畫面
+  if(!G.account.email){
+    showAccountPage();
+  }else{
+    // B-008：語言優先順序
+    autoSelectLang();
+  }
+}
+
+// B-008：自動選擇語言（上次語言→en→ja→ko→Onboarding）
+function autoSelectLang(){
+  const langOrder=['en','ja','ko'];
+  // 先試上次的語言
+  const curLangData=G.langs[G.currentLang];
+  const curHasProgress=curLangData&&Object.keys(curLangData.progress).length>0;
+  if(curHasProgress){
+    enterApp();return;
+  }
+  // 依序找有進度的語言
+  for(const lang of langOrder){
+    const d=G.langs[lang];
+    if(d&&Object.keys(d.progress).length>0){
+      G.currentLang=lang;saveG();
+      enterApp();return;
+    }
+  }
+  // 都沒有→Onboarding
+  showOnboarding();
+}
+
+// ===== 帳號 UI-007 =====
+function showAccountPage(){
+  document.getElementById('accountPage').style.display='flex';
+}
+function toggleAccountMode(){
+  accountMode=accountMode==='new'?'login':'new';
+  document.getElementById('accountTitle').textContent=accountMode==='new'?'建立你的帳號':'歡迎回來';
+  document.getElementById('accountBadge').textContent=accountMode==='new'?'✨ 18天免費體驗，無需信用卡':'👋 繼續你的學習旅程';
+  document.getElementById('accountBtn').textContent=accountMode==='new'?'建立帳號':'登入';
+  document.getElementById('accountSwitch').innerHTML=accountMode==='new'?'已有帳號？<span onclick="toggleAccountMode()">點此登入</span>':'還沒有帳號？<span onclick="toggleAccountMode()">點此建立</span>';
+}
+function handleAccount(){
+  const email=document.getElementById('emailInput').value.trim();
+  if(!email||!email.includes('@')){toast('請輸入正確的電子郵件');return;}
+  G.account.email=email;
+  saveG();
+  document.getElementById('accountPage').style.display='none';
+  // B-008：用語言優先順序判斷
+  autoSelectLang();
+}
+
+// ===== Onboarding UX-003（無按鈕）=====
+function showOnboarding(){
+  document.getElementById('ob').style.display='flex';
+  document.getElementById('obLangSection').style.display='block';
+  document.getElementById('obLmSection').style.display='none';
+  document.getElementById('obStepInd').textContent='選擇學習語言';
+  document.getElementById('obTitle').textContent='你想學哪種語言？';
+  document.getElementById('obSub').textContent='點選後自動進入下一步';
+}
+
+function selectLang(code){
+  G.currentLang=code;saveG();
+  // UX-005 判斷該語言是否有進度
+  const langData=getLang();
+  const hasProgress=Object.keys(langData.progress).length>0||langData.activePacks.length>0;
+  if(hasProgress&&langData.landmark){
+    // 有進度，直接進入學習
+    document.getElementById('ob').style.display='none';
+    enterApp();
+  }else{
+    // 無進度，選地標
+    document.getElementById('obLangSection').style.display='none';
+    document.getElementById('obLmSection').style.display='block';
+    document.getElementById('obStepInd').textContent='選擇挑戰地標';
+    document.getElementById('obTitle').textContent='選擇你的挑戰地標';
+    document.getElementById('obSub').textContent='點選後自動開始學習';
+    renderLmGrid();
+  }
+}
+
+function renderLmGrid(){
+  const lms=LMS[G.currentLang]||[];
+  document.getElementById('lmGrid').innerHTML=lms.map(lm=>`
+    <div class="lm-btn" onclick="selectLm('${lm.id}')">
+      <div class="lm-tag">${lm.tag}</div>
+      <div class="lm-emoji">${lm.emoji}</div>
+      <div class="lm-name">${lm.name}</div>
+      <div class="lm-info">${lm.total}${lm.unit}</div>
+    </div>`).join('');
+}
+
+function selectLm(id){
+  getLang().landmark=id;saveG();
+  document.getElementById('ob').style.display='none';
+  enterApp();
+  toast(`🎉 開始學習！18天後${{en:'英文',ja:'日文',ko:'韓文'}[G.currentLang]||'英文'}變習慣！`);
+}
+
+function showLmSelect(){
+  document.getElementById('ob').style.display='flex';
+  document.getElementById('obLangSection').style.display='none';
+  document.getElementById('obLmSection').style.display='block';
+  document.getElementById('obStepInd').textContent='更換挑戰地標';
+  document.getElementById('obTitle').textContent='選擇新的挑戰地標';
+  document.getElementById('obSub').textContent='點選後自動切換';
+  renderLmGrid();
+}
+
+function enterApp(){
+  updateStreak();renderSettings();renderPacks();renderStats();
+  updateBuildArea(); // UI-011 更新建字區欄位
+  buildQueue();renderLearn();
+}
+
+// ===== F-027 語言切換 =====
+// UI-011 建字區依語言切換
+function updateBuildArea(){
+  const cfg={
+    en:{word:'英文單字',wordPh:'如：mechanism',ipa:'IPA音標',ipaPh:'如：ˈmɛk·ə·ˌnɪz·əm'},
+    ja:{word:'日文單字',wordPh:'如：機械（きかい）',ipa:'假名標音',ipaPh:'如：きかい'},
+    ko:{word:'韓文單字',wordPh:'如：기계',ipa:'韓文標音',ipaPh:'如：기계'},
+  };
+  const c=cfg[G.currentLang]||cfg.en;
+  const wl=document.getElementById('bWordLabel');
+  const il=document.getElementById('bIpaLabel');
+  const wi=document.getElementById('bWord');
+  const ii=document.getElementById('bIpa');
+  if(wl)wl.textContent=c.word;
+  if(il)il.innerHTML=`${c.ipa} <span class="opt">選填</span>`;
+  if(wi)wi.placeholder=c.wordPh;
+  if(ii)ii.placeholder=c.ipaPh;
+}
+
+function switchLang(code){
+  if(G.currentLang===code)return;
+  G.currentLang=code;saveG();
+  document.querySelectorAll('.lang-switch-btn').forEach(b=>b.classList.toggle('active',b.dataset.lang===code));
+  const langData=getLang();
+  const hasProgress=Object.keys(langData.progress).length>0||langData.activePacks.length>0;
+  if(!hasProgress||!langData.landmark){
+    // 新語言，需要選地標
+    showLmSelect();
+  }else{
+    enterApp();
+    updateBuildArea(); // UI-011
+    toast(`切換到${LANGS[code].flag} ${LANGS[code].name}`);
+  }
+}
+
+// ===== 主題 =====
+function setTheme(t){G.theme=t;applyTheme(t);saveG();}
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  document.querySelectorAll('.theme-dot').forEach(d=>d.classList.toggle('active',d.dataset.t===t));
+}
+
+// ===== 導覽 =====
+function goPage(name,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page'+name).classList.add('active');
+  if(el)el.classList.add('active');
+  if(name==='Results')renderStats();
+  if(name==='Packs')renderPacks();
+}
+
+// ===== 工具 =====
+function todayStr(){return new Date().toISOString().split('T')[0];}
+function addDays(d,n){const dt=new Date(d);dt.setDate(dt.getDate()+n);return dt.toISOString().split('T')[0];}
+function shuffle(a){const r=[...a];for(let i=r.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[r[i],r[j]]=[r[j],r[i]];}return r;}
+function getActivePacks(){
+  const L=getLang();
+  // 官方包依當前語言篩選（無 lang 欄位的舊包視為英文）
+  const langPacks=OFFICIAL_PACKS.filter(p=>(p.lang||'en')===G.currentLang);
+  const customPack=G.customWords.length?[{id:'custom',name:'自建字庫',cat:'自建',lang:G.currentLang,verified:false,price:0,words:G.customWords}]:[];
+  const all=[...langPacks,...customPack];
+  // 若 activePacks 為空，自動啟用第一個
+  if(!L.activePacks||L.activePacks.length===0){
+    const first=langPacks[0];
+    if(first){L.activePacks=[first.id];saveG();}
+  }
+  // activePacks 裡若有不屬於當前語言的包，自動清除
+  const validIds=all.map(p=>p.id);
+  const cleaned=L.activePacks.filter(id=>validIds.includes(id));
+  if(cleaned.length===0&&langPacks.length>0){
+    cleaned.push(langPacks[0].id);
+  }
+  if(cleaned.length!==L.activePacks.length){
+    L.activePacks=cleaned;saveG();
+  }
+  return all.filter(p=>L.activePacks.includes(p.id));
+}
+
+// ===== SRS =====
+function buildQueue(){
+  const L=getLang();const today=todayStr();
+  if(L.todayStats.date!==today){L.todayStats={known:0,unknown:0,date:today,unknownWords:[]};saveG();}
+  const words=getActivePacks().flatMap(p=>p.words);
+  const reviews=words.filter(w=>{const p=L.progress[w.id];if(!p||p.knownCount>=MASTER_THRESHOLD)return false;return p.nextReview&&p.nextReview<=today;});
+  const newW=words.filter(w=>!L.progress[w.id]&&!reviews.find(r=>r.id===w.id));
+  const lim=Math.max(0,G.settings.dailyLimit-reviews.length);
+  queue=[...shuffle(reviews),...shuffle(newW).slice(0,lim)];idx=0;
+}
+
+// ===== 學習頁 =====
+function renderLearn(){
+  const el=document.getElementById('learnContent');
+  const L=getLang();const li=LANGS[G.currentLang];
+  document.getElementById('hSub').textContent=li.flag+' '+li.name;
+  if(!queue.length)buildQueue();
+  // queue 仍為空：無可用字庫包，顯示引導畫面
+  if(queue.length===0){
+    el.innerHTML=`
+      <div class="card" style="text-align:center;padding:40px 20px;">
+        <div style="font-size:48px;margin-bottom:12px;">📦</div>
+        <div style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px;">還沒有學習內容</div>
+        <div style="font-size:13px;color:var(--text-sub);margin-bottom:20px;line-height:1.7;">
+          請先到「字庫包」頁面<br>啟用一個字庫包，再回來學習！
+        </div>
+        <button class="btn-primary" style="font-size:14px" onclick="goPage('Packs',document.querySelector('.nav-btn:nth-child(2)'))">前往字庫包 →</button>
+      </div>`;
+    return;
+  }
+  if(idx>=queue.length){renderResult();return;}
+  curWord=queue[idx];
+  speechFailCount=0; // F-037 重置口說失敗次數
+  curWordRate=null;  // F-039 重置當前單字臨時速度
+  const pct=queue.length>0?idx/queue.length*100:0;
+  const sylP=(curWord.syl||curWord.en).split('·');
+  const ipaP=(curWord.ipa||'').split('·');
+  let tbl='<table class="syl-table"><tr>';
+  sylP.forEach(s=>tbl+=`<td>${s.trim()}</td>`);
+  tbl+='</tr><tr>';
+  sylP.forEach((_,i)=>tbl+=`<td>${ipaP[i]?ipaP[i].trim():''}</td>`);
+  tbl+='</tr></table>';
+  const todayUnknown=L.todayStats.unknownWords||[];
+  el.innerHTML=`
+    <div class="progress-wrap"><div class="progress-fill" style="width:${pct}%"></div></div>
+    <div class="progress-label">${idx}/${queue.length} 字</div>
+    ${todayUnknown.length>0?`<button class="unknown-list-btn" onclick="openUnknownModal()">❌ 今日不熟 ${todayUnknown.length} 字（點擊查看）</button>`:''}
+    <div class="word-card">
+      <button class="report-icon-btn" onclick="openModal('reportModal')" title="回報錯誤">⚑</button>
+      <div class="word-main">${curWord.en}</div>
+      <div class="pos-wrap"><span class="pos-tag">${curWord.pos}</span></div>
+      ${tbl}
+      <div class="rating-row">
+        <button class="btn-unknown" onclick="rate(false)">✕ 不熟</button>
+        <button class="btn-known" onclick="rate(true)">✓ 熟悉</button>
+      </div>
+      ${curWord.syl?`
+      <div class="listen-row">
+        <button class="btn-speed" id="btnSlow" onclick="speakAt(0.5)">×0.5</button>
+        <button class="btn-listen-main" onclick="speakAt(null)"><i class="ti ti-volume"></i> 聽發音</button>
+        <button class="btn-speed" id="btnFast" onclick="speakAt(1.5)">×1.5</button>
+      </div>`:''}
+      <!-- F-037 用口說按鈕 -->
+      <button class="btn-listen" id="btnSpeak" onclick="startSpeechInput()" style="background:var(--accent-light);color:#92400E;margin-bottom:0"><i class="ti ti-microphone"></i> 用口說</button>
+      <div id="speechFeedback" style="display:none;font-size:12px;color:var(--text-sub);text-align:center;margin-top:4px;"></div>
+      <div class="answer-area" id="answerArea">
+        <!-- UI-006 同義詞左側 + 中文翻譯 + 動詞三態右側 -->
+        <div class="zh-row" id="zhRow">
+          <button class="syn-entry-btn" id="synEntryBtn" onclick="showSynPopupBtn(event)">同</button>
+          <div class="zh-main">${curWord.zh}</div>
+          <button class="verb-entry-btn" id="verbEntryBtn" onclick="showVerbPopupBtn(event)">動</button>
+        </div>
+        <div id="exBox"></div>
+      </div>
+    </div>`;
+}
+
+function rate(known){
+  clearTimeout(autoAdvanceTimer);
+  // Bug fix：選後立即鎖定不熟/熟悉按鈕
+  document.querySelectorAll('.btn-known,.btn-unknown').forEach(b=>{b.disabled=true;b.style.opacity='.4';});
+  const ansArea=document.getElementById('answerArea');
+  if(ansArea)ansArea.classList.add('show');
+  // B-005 按熟悉才顯示「同」「動」小按鈕
+  if(known){
+    const synBtn=document.getElementById('synEntryBtn');
+    const verbBtn=document.getElementById('verbEntryBtn');
+    if(synBtn&&curWord.syns&&curWord.syns.length>0)synBtn.classList.add('visible');
+    if(verbBtn&&curWord.verb3)verbBtn.classList.add('visible');
+    if(G.settings.aiExample&&apiKey)loadExample();
+  }
+  // SRS記錄
+  const L=getLang();const id=curWord.id;const today=todayStr();
+  if(!L.progress[id])L.progress[id]={knownCount:0,nextReview:'',lastSeen:''};
+  const p=L.progress[id];
+  if(known){
+    p.knownCount=Math.min(p.knownCount+1,MASTER_THRESHOLD);
+    const interval=SRS_INTERVALS[Math.min(p.knownCount,SRS_INTERVALS.length-1)];
+    p.nextReview=interval>0?addDays(today,interval):'';
+    L.todayStats.known++;
+    L.landmarkProgress.masteredTotal=Object.values(L.progress).filter(x=>x.knownCount>=MASTER_THRESHOLD).length;
+    if(L.lastStudy!==today){L.streak++;L.lastStudy=today;}
+  }else{
+    p.nextReview=addDays(today,1);
+    L.todayStats.unknown++;
+    if(!L.todayStats.unknownWords)L.todayStats.unknownWords=[];
+    if(!L.todayStats.unknownWords.find(w=>w.id===id))L.todayStats.unknownWords.push({id,en:curWord.en,zh:curWord.zh});
+  }
+  p.lastSeen=today;saveG();
+  // 繼續按鈕
+  const card=document.querySelector('.word-card');
+  if(card&&!document.getElementById('btnNext')){
+    const btn=document.createElement('button');
+    btn.id='btnNext';btn.className='btn-next';btn.textContent='繼續 →';btn.onclick=nextWord;
+    card.appendChild(btn);
+  }
+  if(G.settings.autoAdvance)autoAdvanceTimer=setTimeout(nextWord,2000);
+}
+
+function nextWord(){clearTimeout(autoAdvanceTimer);idx++;renderLearn();}
+
+// B-005 「同」按鈕浮層
+function showSynPopupBtn(e){
+  e.stopPropagation();
+  if(!curWord.syns||!curWord.syns.length)return;
+  const synMap={
+    'device':'裝置，機器','apparatus':'器械，儀器','system':'系統，體系',
+    'adjust':'調整，校正','standardize':'標準化','set':'設定，調整',
+    'allowance':'允許量','margin':'裕度，邊界','deviation':'偏差',
+    'support':'支撐件','mount':'固定座','oiling':'上油','greasing':'塗脂潤滑',
+    'standard':'標準','requirement':'要求','criterion':'準則',
+    'loop':'迴路','network':'網路','path':'路徑',
+    'potential':'電位','EMF':'電動勢','base':'基底','footing':'基腳','groundwork':'基礎工程',
+    'digging':'挖掘','trenching':'開挖壕溝','belt':'皮帶','transporter':'運送機',
+    'fluid-powered':'流體驅動','water-driven':'水力驅動',
+    'air-powered':'氣壓驅動','compressed-air':'壓縮空氣式',
+    'twist force':'扭轉力','rotation force':'旋轉力','transistor material':'半導體材料',
+  };
+  const content=curWord.syns.slice(0,3).map(s=>`<div class="popup-item">• <strong>${s}</strong>：${synMap[s]||s}</div>`).join('');
+  showPopup(e,'同義詞',content);
+}
+
+// B-005 「動」按鈕浮層
+function showVerbPopupBtn(e){
+  e.stopPropagation();
+  if(!curWord.verb3)return;
+  const{v1,v2,v3}=curWord.verb3;
+  showPopup(e,'動詞三態',`
+    <div class="popup-item">原形：<strong>${v1}</strong></div>
+    <div class="popup-item">過去式：<strong>${v2}</strong></div>
+    <div class="popup-item">過去分詞：<strong>${v3}</strong></div>
+  `);
+}
+
+// 舊版浮層函式保留（相容性）
+function showSynPopup(e,syn){showSynPopupBtn(e);}
+function showVerbPopup(e){showVerbPopupBtn(e);}
+
+function showPopup(e,title,content){
+  const overlay=document.getElementById('popupOverlay');
+  const box=document.getElementById('popupBox');
+  document.getElementById('popupTitle').textContent=title;
+  document.getElementById('popupContent').innerHTML=content;
+  const rect=e.target.getBoundingClientRect();
+  box.style.top=(rect.bottom+8)+'px';
+  box.style.left=Math.min(rect.left,window.innerWidth-250)+'px';
+  overlay.classList.add('show');
+}
+function closePopup(){document.getElementById('popupOverlay').classList.remove('show');}
+
+function loadExample(){
+  const box=document.getElementById('exBox');
+  if(!box||!apiKey)return;
+  box.innerHTML='<div style="font-size:12px;color:var(--text-sub);font-style:italic;margin-top:8px;text-align:center">💡 生成例句中...</div>';
+  fetch(CLAUDE_API,{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:150,messages:[{role:'user',content:`One short professional sentence using "${curWord.en}". Reply ONLY:\nEN: [sentence]\nZH: [translation]`}]})
+  }).then(r=>r.json()).then(d=>{
+    const txt=d.content?.[0]?.text||'';
+    const en=txt.match(/EN:\s*(.+)/)?.[1]?.trim();
+    const zh=txt.match(/ZH:\s*(.+)/)?.[1]?.trim();
+    if(en&&zh)box.innerHTML=`
+      <div style="background:var(--primary-light);border-radius:var(--radius-sm);padding:10px 12px;margin-top:10px;">
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">${en}</div>
+        <div style="font-size:12px;color:var(--text-sub);">${zh}</div>
+      </div>`;
+    else box.innerHTML='';
+  }).catch(()=>{box.innerHTML='';});
+}
+
+// F-039 speakAt：針對當前單字的臨時速度播放
+// 速度鍵 = 播放模式，按同一鍵再播一次，唯一重置時機是換卡
+function speakAt(rate){
+  if(!curWord)return;
+  if(rate===null){
+    // 中間「聽發音」鍵：以目前模式速度播放（無臨時速度則用全域預設）
+    rate=curWordRate||G.settings.speechRate||1;
+  }else{
+    // 速度鍵：切換模式（不同速度才換，同速度直接再播）
+    if(curWordRate!==rate){
+      curWordRate=rate;
+      _updateSpeedBtns();
+    }
+    // 不論是否已是同速度，都直接播放
+  }
+  const u=new SpeechSynthesisUtterance(curWord.en);
+  u.lang=LANGS[G.currentLang]?.tts||'en-US';
+  u.rate=rate;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+}
+function _updateSpeedBtns(){
+  const slow=document.getElementById('btnSlow');
+  const fast=document.getElementById('btnFast');
+  if(slow)slow.classList.toggle('active',curWordRate===0.5);
+  if(fast)fast.classList.toggle('active',curWordRate===1.5);
+}
+function speak(){ speakAt(null); } // 相容舊呼叫
+
+// F-039 全域發音速度切換（設定頁）
+function setSpeechRate(rate){
+  G.settings.speechRate=rate;
+  saveG();
+  // 更新按鈕狀態
+  [0.5,1,1.5].forEach(r=>{
+    const id='spd'+String(r).replace('.','');
+    const el=document.getElementById(id);
+    if(el)el.classList.toggle('active',r===rate);
+  });
+}
+
+// F-037 口說辨識
+function startSpeechInput(){
+  const btn=document.getElementById('btnSpeak');
+  const fb=document.getElementById('speechFeedback');
+  if(!btn||btn.disabled)return;
+  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){
+    fb.style.display='block';
+    fb.textContent='⚠️ 瀏覽器不支援語音辨識，請改用 Chrome';
+    speechFailCount++;
+    if(speechFailCount>=3){btn.disabled=true;btn.style.opacity='.4';}
+    return;
+  }
+  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+  const rec=new SpeechRecognition();
+  const langMap={en:'en-US',ja:'ja-JP',ko:'ko-KR'};
+  rec.lang=langMap[G.currentLang]||'en-US';
+  rec.continuous=false;rec.interimResults=false;
+  btn.innerHTML='<i class="ti ti-microphone" style="animation:pulse 1s infinite"></i> 聆聽中...';
+  btn.disabled=true;
+  fb.style.display='none';
+  rec.onresult=function(e){
+    const said=(e.results[0][0].transcript||'').trim().toLowerCase();
+    const target=(curWord.en||'').toLowerCase();
+    btn.innerHTML='<i class="ti ti-microphone"></i> 用口說';btn.disabled=false;
+    if(said===target||said.includes(target)||target.includes(said)){
+      fb.style.display='block';fb.style.color='var(--success)';
+      fb.textContent=`✅ 辨識成功：「${said}」—— 太棒了！`;
+      speechFailCount=0;
+    }else{
+      fb.style.display='block';fb.style.color='var(--text-sub)';
+      fb.textContent=`🎤 辨識為：「${said}」，請再試一次`;
+    }
+  };
+  rec.onerror=function(e){
+    btn.innerHTML='<i class="ti ti-microphone"></i> 用口說';
+    speechFailCount++;
+    fb.style.display='block';fb.style.color='var(--danger)';
+    const errMsg={
+      'no-speech':'沒有偵測到聲音',
+      'audio-capture':'無法存取麥克風',
+      'not-allowed':'麥克風權限被拒絕',
+      'network':'網路連線錯誤',
+      'aborted':'辨識已中止',
+    };
+    const msg=errMsg[e.error]||'辨識失敗，請稍後再試';
+    if(speechFailCount>=3){
+      btn.disabled=true;btn.style.opacity='.4';
+      fb.textContent=`⛔ ${msg}（已達3次上限，此題請用按鈕作答）`;
+    }else{
+      btn.disabled=false;
+      fb.textContent=`⚠️ ${msg}（${speechFailCount}/3次）—— 再試一次`;
+    }
+  };
+  rec.start();
+}
+
+// 不熟清單
+function openUnknownModal(){
+  const words=(getLang().todayStats.unknownWords)||[];
+  if(!words.length){document.getElementById('unknownListContent').innerHTML='<div style="text-align:center;padding:20px;color:var(--text-sub)">今日尚無不熟單字</div>';}
+  else{
+    window._uIdx=0;window._uWords=words;
+    document.getElementById('unknownListContent').innerHTML=`
+      <div id="uCard" style="text-align:center;padding:16px">
+        <div style="font-size:24px;font-weight:700;margin-bottom:6px">${words[0].en}</div>
+        <div style="font-size:18px;color:var(--text-sub)">${words[0].zh}</div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px">
+        <button style="background:var(--danger-light);color:var(--danger);border-radius:var(--radius-sm);padding:8px 16px;font-size:13px;font-weight:600" onclick="navUnknown(-1)">← 上一個</button>
+        <span id="uLabel" style="font-size:12px;color:var(--text-sub)">1/${words.length}</span>
+        <button style="background:var(--danger-light);color:var(--danger);border-radius:var(--radius-sm);padding:8px 16px;font-size:13px;font-weight:600" onclick="navUnknown(1)">下一個 →</button>
+      </div>`;
+  }
+  openModal('unknownModal');
+}
+function navUnknown(d){
+  const w=window._uWords;window._uIdx=Math.max(0,Math.min(w.length-1,window._uIdx+d));
+  const c=document.getElementById('uCard');const l=document.getElementById('uLabel');
+  if(c)c.innerHTML=`<div style="font-size:24px;font-weight:700;margin-bottom:6px">${w[window._uIdx].en}</div><div style="font-size:18px;color:var(--text-sub)">${w[window._uIdx].zh}</div>`;
+  if(l)l.textContent=`${window._uIdx+1}/${w.length}`;
+}
+
+// 結算
+function renderResult(){
+  const L=getLang();const{known,unknown}=L.todayStats;
+  const lmInfo=getLmInfo();
+  document.getElementById('learnContent').innerHTML=`
+    <div class="result-card">
+      <div class="result-title">🎉 今日完成！</div>
+      <div class="result-sub">繼續保持，18天後${{'en':'英文','ja':'日文','ko':'韓文'}[G.currentLang]||'英文'}變習慣</div>
+      <div class="stat-row">
+        <div class="stat-box"><div class="stat-num" style="color:var(--success)">${known}</div><div class="stat-label">✓ 熟悉</div></div>
+        <div class="stat-box"><div class="stat-num" style="color:var(--danger)">${unknown}</div><div class="stat-label">✕ 不熟</div></div>
+      </div>
+      ${lmInfo?renderLmCard(lmInfo):''}
+    </div>
+    <div style="margin-top:10px"><button class="btn-primary" onclick="restart()">再練一次</button></div>`;
+}
+
+function getLmInfo(){
+  const L=getLang();
+  if(!L.landmark||!G.currentLang)return null;
+  const lm=(LMS[G.currentLang]||[]).find(l=>l.id===L.landmark);
+  if(!lm)return null;
+  const total=getActivePacks().flatMap(p=>p.words).length||100;
+  const mastered=L.landmarkProgress.masteredTotal||0;
+  const pw=lm.total/total;
+  const curH=Math.round(mastered*pw);
+  const pct=Math.min(100,Math.round(mastered/total*100));
+  const ms=lm.milestones.find(m=>pct/100<=m.pct)||lm.milestones[lm.milestones.length-1];
+  return{lm,curH,pct,ms,mastered,total,pw};
+}
+
+function renderLmCard(info){
+  const{lm,curH,pct,ms}=info;
+  const L=getLang();
+  const rise=Math.round(L.todayStats.known*info.pw);
+  const cheers={
+    fuji:['富士山的每一步都是修行！','雲霧繚繞中，你的意志比山更高！'],
+    skytree:['東京の夜景が待っている！'],
+    lotte:['首爾的天空就是你的舞台！'],
+    namsan:['K-pop的靈感在山頂等你！🎵'],
+    empire:["King Kong climbed it with muscles, you climb it with words! 💪"],
+    default:['繼續努力，山頂就在前方！'],
+  };
+  const cl=cheers[lm.id]||cheers.default;
+  const cheer=cl[Math.floor(Math.random()*cl.length)];
+  return`<div class="lm-card">
+    <div class="lm-card-name">${lm.emoji} ${lm.name} 挑戰中</div>
+    <div class="lm-card-sub">今日上升 ${rise}${lm.unit}｜目前 ${curH} / ${lm.total}${lm.unit}</div>
+    <div class="lm-bar-bg"><div class="lm-bar-fill" style="width:${pct}%"></div></div>
+    <div class="lm-milestone">📍 ${ms.label}：${ms.desc}</div>
+    <div class="lm-cheer">💬 ${cheer}</div>
+  </div>`;
+}
+
+function restart(){
+  // 先切換到學習頁，再重建佇列
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('pageLearn').classList.add('active');
+  // 找學習按鈕（第三個 nav-btn）
+  const navBtns=document.querySelectorAll('.nav-btn');
+  if(navBtns[2])navBtns[2].classList.add('active');
+  // 重置 idx 並重建佇列
+  idx=0;
+  buildQueue();
+  renderLearn();
+}
+
+// 分享
+function getShareText(){
+  const L=getLang();const{known,unknown}=L.todayStats;
+  const info=getLmInfo();
+  let lmLine='';if(info)lmLine=`\n🗻 ${info.lm.name} ${info.curH}${info.lm.unit}（${info.pct}%）`;
+  return`📚 今日學習成果\n━━━━━━━━━━━━━━━\n✓ 熟悉：${known} 個單字\n✕ 不熟：${unknown} 個單字\n🔥 連續學習：第 ${L.streak} 天${lmLine}\n━━━━━━━━━━━━━━━\n一起來挑戰！→ ${APP_URL}`;
+}
+function openShareModal(){document.getElementById('sharePreview').textContent=getShareText();openModal('shareModal');}
+function doShare(){
+  const text=getShareText();
+  closeModal('shareModal');
+  // B-004：改為自動複製，確保所有裝置可用
+  navigator.clipboard?.writeText(text)
+    .then(()=>toast('✅ 已複製！貼到 LINE/FB 即可'))
+    .catch(()=>{
+      // fallback：建立暫存textarea複製
+      const ta=document.createElement('textarea');
+      ta.value=text;document.body.appendChild(ta);
+      ta.select();document.execCommand('copy');
+      document.body.removeChild(ta);
+      toast('✅ 已複製！貼到 LINE/FB 即可');
+    });
+}
+function copyShareText(){copyText(getShareText());}
+function copyText(t){navigator.clipboard?.writeText(t).then(()=>toast('✅ 已複製！')).catch(()=>toast('複製失敗，請手動複製'));}
+function shareIG(){toast('📸 IG圖片功能即將推出！');}
+function toggleQR(){document.getElementById('qrSection').classList.toggle('show');}
+
+// F-031 字庫包語言篩選
+let storeFilterLang=null; // null=跟隨當前語言
+
+function renderPacks(){
+  const L=getLang();
+  if(!L.activePacks)L.activePacks=[];
+  // 已擁有：只顯示當前語言的包
+  const owned=OFFICIAL_PACKS.filter(p=>p.lang===G.currentLang);
+  if(G.customWords.length)owned.push({id:'custom',name:'自建字庫',cat:'自建',lang:G.currentLang,verified:false,price:0,words:G.customWords});
+  document.getElementById('ownedPackList').innerHTML=owned.map(p=>{
+    const isActive=L.activePacks.includes(p.id);
+    const total=p.words.length;
+    const mastered=p.words.filter(w=>L.progress[w.id]?.knownCount>=MASTER_THRESHOLD).length;
+    const pct=total>0?Math.round(mastered/total*100):0;
+    return`<div class="pack-card ${isActive?'active':''}">
+      <div class="pack-name">${p.name}${p.verified?'<span class="pack-badge">✓ 已驗證</span>':''}</div>
+      <div class="pack-meta">${total} 字 · ${p.cat}</div>
+      <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
+      <div class="pack-progress-label">已熟悉 ${mastered} 個｜完成率 ${pct}%</div>
+      <div class="pack-actions">
+        <button class="pack-toggle" onclick="togglePack('${p.id}')">${isActive?'啟用中':'啟用'}</button>
+        <button class="pack-delete" onclick="askDelete('${p.id}')">刪除</button>
+      </div>
+    </div>`;
+  }).join('');
+  // 購買區語言篩選
+  if(storeFilterLang===null)storeFilterLang=G.currentLang;
+  renderStore(document.getElementById('storeSearch')?.value||'');
+}
+
+function renderStoreLangFilter(){
+  const langs=[{code:'en',flag:'🇺🇸',name:'英文'},{code:'ja',flag:'🇯🇵',name:'日文'},{code:'ko',flag:'🇰🇷',name:'韓文'}];
+  return`<div style="display:flex;gap:6px;margin-bottom:10px;">
+    ${langs.map(l=>`<button style="flex:1;padding:7px;border-radius:var(--radius-sm);border:1.5px solid ${storeFilterLang===l.code?'var(--primary)':'var(--border)'};background:${storeFilterLang===l.code?'var(--primary-light)':'var(--card)'};color:${storeFilterLang===l.code?'var(--primary)':'var(--text-sub)'};font-size:12px;font-weight:600;cursor:pointer" onclick="setStoreLang('${l.code}')">${l.flag} ${l.name}</button>`).join('')}
+  </div>`;
+}
+function setStoreLang(code){
+  storeFilterLang=code;
+  renderStore(document.getElementById('storeSearch')?.value||'');
+  // 更新篩選按鈕樣式
+  renderPacks();
+}
+function filterStore(){renderStore(document.getElementById('storeSearch').value);}
+function renderStore(q){
+  const lang=storeFilterLang||G.currentLang;
+  const storeLang=STORE_PACKS.filter(p=>p.lang===lang);
+  const f=storeLang.filter(p=>!q||p.name.includes(q)||p.cat.includes(q));
+  const storeEl=document.getElementById('storePackList');
+  if(storeEl)storeEl.innerHTML=renderStoreLangFilter()+f.map(p=>`
+    <div class="store-card">
+      <div style="flex:1"><div class="store-name">${p.name}<span class="pack-badge" style="margin-left:5px">✓</span></div><div class="store-meta">${p.words}字·${p.cat}·★${p.rating}（${p.buyers.toLocaleString()}人）</div><div class="store-price">NT$${p.price}</div></div>
+      <button class="btn-buy" onclick="buyPack('${p.id}')">購買</button>
+    </div>`).join('');
+}
+function buyPack(){toast('💳 付款功能即將上線！');}
+function togglePack(id){
+  const L=getLang();
+  if(!L.activePacks)L.activePacks=[];
+  const i=L.activePacks.indexOf(id);
+  if(i>=0){if(L.activePacks.length<=1){toast('至少保留一個字庫包');return;}L.activePacks.splice(i,1);}
+  else{if(L.activePacks.length>=3){toast('最多同時啟用 3 個字庫包');return;}L.activePacks.push(id);}
+  saveG();renderPacks();buildQueue();
+}
+function askDelete(id){pendingDeleteId=id;openModal('deleteModal');}
+function confirmDelete(){
+  if(!pendingDeleteId){closeModal('deleteModal');return;}
+  const L=getLang();
+  if(pendingDeleteId==='custom')G.customWords=[];
+  const i=L.activePacks.indexOf(pendingDeleteId);
+  if(i>=0)L.activePacks.splice(i,1);
+  if(!L.activePacks.length)L.activePacks=['mechanical'];
+  saveG();renderPacks();buildQueue();closeModal('deleteModal');toast('✅ 已刪除');pendingDeleteId=null;
+}
+
+// 建字
+// ===== F-034 批次建立 =====
+let batchWords=[];
+let batchProcessed=[];
+
+// 下載 Excel 範本
+function downloadTemplate(lang){
+  const cfg={
+    en:{col:'單字（必填）',col2:'詞性',col3:'中文翻譯',col4:'IPA音標',ex:'mechanism',ex2:'n.',ex3:'機構；機制',ex4:'ˈmɛk·ə·ˌnɪz·əm',fname:'pvqc_template_en.xlsx'},
+    ja:{col:'日文單字（必填）',col2:'詞性',col3:'中文翻譯',col4:'假名標音',ex:'機械',ex2:'n.',ex3:'機械；機器',ex4:'きかい',fname:'pvqc_template_ja.xlsx'},
+    ko:{col:'韓文單字（必填）',col2:'詞性',col3:'中文翻譯',col4:'韓文標音',ex:'기계',ex2:'n.',ex3:'機械；機器',ex4:'gi-gye',fname:'pvqc_template_ko.xlsx'},
+  };
+  const c=cfg[lang];
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet([
+    [c.col,c.col2,c.col3,c.col4],
+    [`（範例）${c.ex}`,c.ex2,c.ex3,c.ex4],
+    ['','','',''],
+  ]);
+  // 設定欄位寬度
+  ws['!cols']=[{wch:25},{wch:10},{wch:20},{wch:25}];
+  XLSX.utils.book_append_sheet(wb,ws,'單字清單');
+  XLSX.writeFile(wb,c.fname);
+  toast(`✅ ${c.fname} 已下載！`);
+}
+
+// 處理 Excel 上傳
+function handleBatchUpload(input){
+  const file=input.files[0];
+  if(!file)return;
+  const statusEl=document.getElementById('batchStatus');
+  statusEl.style.display='block';
+  statusEl.innerHTML=`<div style="font-size:12px;color:var(--primary)">📖 讀取檔案中...</div>`;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=new Uint8Array(e.target.result);
+      const wb=XLSX.read(data,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      // 跳過標題列和範例列，取第三列起
+      const wordRows=rows.slice(2).filter(r=>r[0]&&String(r[0]).trim()&&!String(r[0]).startsWith('（'));
+      if(wordRows.length===0){
+        statusEl.innerHTML=`<div style="font-size:12px;color:var(--danger)">❌ 未找到單字資料，請確認從第3列開始填入</div>`;
+        return;
+      }
+      if(wordRows.length>2500){
+        statusEl.innerHTML=`<div style="font-size:12px;color:var(--danger)">❌ 最多支援2500個單字，目前有${wordRows.length}個</div>`;
+        return;
+      }
+      batchWords=wordRows.map(r=>String(r[0]).trim());
+      // 自動帶入包名
+      const packNameEl=document.getElementById('batchPackName');
+      if(packNameEl&&!packNameEl.value){
+        const langName={en:'英文',ja:'日文',ko:'韓文'}[G.currentLang]||'';
+        packNameEl.value=`${langName}自建字庫${new Date().getFullYear()}`;
+      }
+      statusEl.innerHTML=`<div style="font-size:12px;color:var(--success)">✅ 讀取到 ${batchWords.length} 個單字，開始 AI 補全...</div>`;
+      startAIBatch();
+    }catch(err){
+      statusEl.innerHTML=`<div style="font-size:12px;color:var(--danger)">❌ 檔案解析失敗，請確認是 .xlsx 格式</div>`;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// AI 批次補全
+async function startAIBatch(){
+  const apiK=localStorage.getItem('pvqc_api_key');
+  if(!apiK){
+    const k=prompt('批次建立需要 Claude API Key，請輸入：');
+    if(!k){document.getElementById('batchStatus').innerHTML=`<div style="font-size:12px;color:var(--danger)">❌ 未輸入 API Key，無法進行 AI 補全</div>`;return;}
+    localStorage.setItem('pvqc_api_key',k);
+  }
+  batchProcessed=[];
+  const statusEl=document.getElementById('batchStatus');
+  const langName={en:'English',ja:'Japanese',ko:'Korean'}[G.currentLang]||'English';
+  const batchSize=5;
+  for(let i=0;i<batchWords.length;i+=batchSize){
+    const chunk=batchWords.slice(i,i+batchSize);
+    const pct=Math.round(i/batchWords.length*100);
+    statusEl.innerHTML=`
+      <div style="font-size:12px;color:var(--primary);margin-bottom:6px">⏳ AI 處理中（${i+1}–${Math.min(i+batchSize,batchWords.length)} / ${batchWords.length}）</div>
+      <div style="background:var(--border);border-radius:99px;height:6px;overflow:hidden;">
+        <div style="width:${pct}%;height:100%;background:var(--primary);border-radius:99px;transition:width .3s"></div>
+      </div>`;
+    try{
+      const prompt=`For each ${langName} word/phrase below, return a JSON array. Each item: {"word":"original","pos":"n./v./adj./adv./expr.","zh":"中文翻譯","reading":"pronunciation/reading"}.
+Words: ${chunk.map((w,i)=>`${i+1}.${w}`).join(', ')}
+Return ONLY valid JSON array, no other text.`;
+      const r=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':localStorage.getItem('pvqc_api_key'),'anthropic-version':'2023-06-01'},
+        body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,messages:[{role:'user',content:prompt}]})
+      });
+      const d=await r.json();
+      const txt=d.content?.[0]?.text||'[]';
+      const clean=txt.replace(/```json|```/g,'').trim();
+      const items=JSON.parse(clean);
+      items.forEach(item=>{
+        batchProcessed.push({
+          word:item.word||'',pos:item.pos||'n.',zh:item.zh||'',
+          reading:item.reading||'',ok:!!(item.zh&&item.pos),
+        });
+      });
+    }catch(err){
+      chunk.forEach(w=>batchProcessed.push({word:w,pos:'',zh:'',reading:'',ok:false}));
+    }
+    await new Promise(res=>setTimeout(res,500));
+  }
+  statusEl.style.display='none';
+  showBatchPreview();
+}
+
+// 顯示預覽表格
+function showBatchPreview(){
+  document.getElementById('batchPreviewSection').style.display='block';
+  document.getElementById('batchPreviewSection').scrollIntoView({behavior:'smooth'});
+  const ok=batchProcessed.filter(w=>w.ok).length;
+  const fail=batchProcessed.filter(w=>!w.ok).length;
+  document.getElementById('batchSummary').innerHTML=
+    `總計 ${batchProcessed.length} 個單字｜<span style="color:var(--success)">✅ ${ok} 正常</span>｜<span style="color:var(--danger)">❌ ${fail} 有問題</span>`;
+  const rows=batchProcessed.map((w,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:var(--radius-sm);background:${w.ok?'var(--bg)':'var(--danger-light)'};margin-bottom:4px;font-size:12px;">
+      <span style="color:${w.ok?'var(--success)':'var(--danger)'};">${w.ok?'✅':'❌'}</span>
+      <span style="font-weight:600;min-width:80px">${w.word}</span>
+      <span style="color:var(--text-sub);min-width:32px">${w.pos}</span>
+      <span style="flex:1">${w.zh||'（AI無法識別，請確認拼寫）'}</span>
+      <span style="color:var(--text-sub);font-size:11px">${w.reading}</span>
+    </div>`).join('');
+  document.getElementById('batchPreviewTable').innerHTML=rows;
+}
+
+// 確認匯入
+function confirmBatchImport(){
+  const packName=document.getElementById('batchPackName').value.trim();
+  if(!packName){toast('請輸入字庫包名稱');return;}
+  const validWords=batchProcessed.filter(w=>w.ok);
+  if(validWords.length===0){toast('沒有可匯入的單字');return;}
+  const packId='batch_'+Date.now();
+  const newPack={
+    id:packId,name:packName,cat:'自建',lang:G.currentLang,
+    verified:false,price:0,
+    words:validWords.map(w=>({
+      id:'b_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+      en:w.word,syl:w.word,ipa:w.reading,
+      pos:w.pos,zh:w.zh,syns:null,verb3:null,
+    })),
+  };
+  // 加入全域字庫包
+  OFFICIAL_PACKS.push(newPack);
+  const L=getLang();
+  if(!L.activePacks.includes(packId))L.activePacks.push(packId);
+  saveG();renderPacks();buildQueue();
+  toast(`✅「${packName}」已加入，共 ${validWords.length} 個單字！`);
+  resetBatch();
+  // 切換到字庫包頁
+  goPage('Packs',document.querySelector('.nav-btn:nth-child(2)'));
+}
+
+function resetBatch(){
+  batchWords=[];batchProcessed=[];
+  document.getElementById('batchFileInput').value='';
+  document.getElementById('batchStatus').style.display='none';
+  document.getElementById('batchPreviewSection').style.display='none';
+  document.getElementById('batchPackName').value='';
+}
+
+function switchBuildTab(tab,el){
+  document.querySelectorAll('.build-tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');
+  document.getElementById('buildSingle').style.display=tab==='single'?'block':'none';
+  document.getElementById('buildBatch').style.display=tab==='batch'?'block':'none';
+}
+function saveCustomWord(){
+  const en=document.getElementById('bWord').value.trim();
+  const pos=document.getElementById('bPos').value;
+  const zh=document.getElementById('bZh').value.trim();
+  const ipa=document.getElementById('bIpa').value.trim();
+  if(!en||!zh){toast('請填寫單字與中文翻譯');return;}
+  G.customWords.push({id:'c_'+Date.now(),en,pos,zh,syl:en,ipa:ipa||'',syns:null,verb3:null,custom:true});
+  const L=getLang();if(!L.activePacks.includes('custom'))L.activePacks.push('custom');
+  saveG();renderPacks();buildQueue();
+  document.getElementById('bWord').value='';document.getElementById('bZh').value='';document.getElementById('bIpa').value='';
+  toast(`✅「${en}」已加入自建字庫！`);
+}
+
+// 統計/成果
+function renderStats(){
+  const L=getLang();
+  const words=getActivePacks().flatMap(p=>p.words);
+  const mastered=words.filter(w=>L.progress[w.id]?.knownCount>=MASTER_THRESHOLD).length;
+  const learning=words.filter(w=>L.progress[w.id]&&L.progress[w.id].knownCount<MASTER_THRESHOLD).length;
+  const g=document.getElementById('statsGrid');
+  if(g)g.innerHTML=`
+    <div class="stat-card"><div class="stat-card-num">${words.length}</div><div class="stat-card-label">總單字數</div></div>
+    <div class="stat-card"><div class="stat-card-num" style="color:var(--success)">${mastered}</div><div class="stat-card-label">已掌握</div></div>
+    <div class="stat-card"><div class="stat-card-num" style="color:var(--accent)">${learning}</div><div class="stat-card-label">學習中</div></div>
+    <div class="stat-card"><div class="stat-card-num" style="color:var(--danger)">${L.streak}</div><div class="stat-card-label">🔥 連續天數</div></div>`;
+  const info=getLmInfo();
+  const lmEl=document.getElementById('statsLm');
+  if(lmEl&&info)lmEl.innerHTML=`<div class="lm-card">
+    <div class="lm-card-name">${info.lm.emoji} ${info.lm.name}</div>
+    <div class="lm-card-sub">${info.curH} / ${info.lm.total}${info.lm.unit}</div>
+    <div class="lm-bar-bg"><div class="lm-bar-fill" style="width:${info.pct}%"></div></div>
+    <div class="lm-milestone">${info.pct}%・${info.ms.label}</div>
+  </div>`;
+  else if(lmEl)lmEl.innerHTML='';
+  // F-033 各語言進度總覽
+  renderAllLangsProgress();
+}
+
+// F-033 各語言進度總覽（只顯示有啟用字庫包的語言）
+function renderAllLangsProgress(){
+  const el=document.getElementById('allLangsProgress');
+  if(!el)return;
+  const langDefs=[
+    {code:'en',name:'英文',flag:'🇺🇸'},
+    {code:'ja',name:'日文',flag:'🇯🇵'},
+    {code:'ko',name:'韓文',flag:'🇰🇷'},
+  ];
+  let html='';
+  langDefs.forEach(({code,name,flag})=>{
+    const langData=G.langs[code];
+    if(!langData||!langData.activePacks||langData.activePacks.length===0)return;
+    // 取得該語言的字庫包
+    const langPacks=OFFICIAL_PACKS.filter(p=>(p.lang||'en')===code&&langData.activePacks.includes(p.id));
+    if(langPacks.length===0)return;
+    // 地標資訊
+    const lmArr=LMS[code]||[];
+    const lm=lmArr.find(l=>l.id===langData.landmark);
+    const totalWords=langPacks.flatMap(p=>p.words).length||1;
+    const masteredTotal=langData.landmarkProgress?.masteredTotal||0;
+    const lmPct=lm?Math.min(100,Math.round(masteredTotal/totalWords*100)):0;
+    const lmH=lm?Math.round(masteredTotal*(lm.total/totalWords)):0;
+    // 各字庫包進度
+    const packRows=langPacks.map(p=>{
+      const total=p.words.length;
+      const done=p.words.filter(w=>langData.progress[w.id]?.knownCount>=MASTER_THRESHOLD).length;
+      const pct=total>0?Math.round(done/total*100):0;
+      return`<div style="display:flex;align-items:center;justify-content:space-between;margin-top:5px;">
+        <span style="font-size:12px;color:var(--text-sub)">${p.name}</span>
+        <span style="font-size:12px;font-weight:600;color:var(--primary)">${done}/${total}<span style="color:var(--text-sub);font-weight:400">（${pct}%）</span></span>
+      </div>`;
+    }).join('');
+    html+=`
+    <div class="card" style="margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="font-size:18px">${flag}</span>
+        <span style="font-size:14px;font-weight:700;color:var(--text)">${name}</span>
+        ${code===G.currentLang?`<span style="font-size:10px;background:var(--primary);color:#fff;border-radius:99px;padding:1px 8px;">學習中</span>`:''}
+      </div>
+      ${lm?`
+      <div style="font-size:12px;color:var(--text-sub);margin-bottom:4px;">📍 ${lm.emoji} ${lm.name}｜${lmH}/${lm.total}${lm.unit}</div>
+      <div class="lm-bar-bg" style="height:6px;margin-bottom:8px;">
+        <div class="lm-bar-fill" style="width:${lmPct}%"></div>
+      </div>`:''}
+      ${packRows}
+    </div>`;
+  });
+  el.innerHTML=html?`<div style="font-size:12px;font-weight:700;color:var(--text-sub);margin:10px 0 6px;">📊 各語言學習進度</div>${html}`:'';
+}
+
+// 設定
+function adj(key,d){
+  const c=SETTING_CFG[key];
+  G.settings[key]=Math.min(c.max,Math.max(c.min,G.settings[key]+d));
+  const ids={dailyLimit:'vDL'};
+  const el=document.getElementById(ids[key]);if(el)el.textContent=G.settings[key];
+  saveG();buildQueue();
+}
+function togS(key){
+  G.settings[key]=!G.settings[key];
+  if(key==='autoAdvance')document.getElementById('togAuto').classList.toggle('on',G.settings[key]);
+  if(key==='aiExample')document.getElementById('togAI').classList.toggle('on',G.settings[key]);
+  saveG();
+}
+function renderSettings(){
+  const L=getLang();
+  const lmArr=LMS[G.currentLang]||[];
+  const lm=lmArr.find(l=>l.id===L.landmark);
+  const el=document.getElementById('curLmLabel');
+  if(el)el.textContent=lm?`${lm.emoji} ${lm.name}`:'未選擇';
+  const emailEl=document.getElementById('currentEmailLabel');
+  if(emailEl&&G.account.email)emailEl.textContent=`登入帳號：${G.account.email}`;
+  document.getElementById('togAuto')?.classList.toggle('on',G.settings.autoAdvance);
+  document.getElementById('togAI')?.classList.toggle('on',G.settings.aiExample);
+  document.querySelectorAll('.lang-switch-btn').forEach(b=>b.classList.toggle('active',b.dataset.lang===G.currentLang));
+  // F-039 同步發音速度按鈕
+  const rate=G.settings.speechRate||1;
+  [0.5,1,1.5].forEach(r=>{
+    const id='spd'+String(r).replace('.','');
+    const el=document.getElementById(id);
+    if(el)el.classList.toggle('active',r===rate);
+  });
+  applyTheme(G.theme);
+}
+
+// UI-008 重置自訂Modal
+function confirmReset(){
+  const L=getLang();
+  L.progress={};L.todayStats={known:0,unknown:0,date:'',unknownWords:[]};
+  L.landmarkProgress={masteredTotal:0};L.streak=0;L.lastStudy='';
+  saveG();buildQueue();renderLearn();renderStats();closeModal('resetModal');
+  toast('✅ 學習進度已重置');
+}
+
+// Streak
+// F-032 登出
+function confirmLogout(){
+  G.account.email='';
+  saveG();
+  closeModal('logoutModal');
+  // 隱藏主畫面，顯示帳號畫面
+  document.getElementById('accountPage').style.display='flex';
+  document.getElementById('accountTitle').textContent='建立你的帳號';
+  document.getElementById('accountBadge').textContent='✨ 18天免費體驗，無需信用卡';
+  document.getElementById('accountBtn').textContent='建立帳號';
+  document.getElementById('emailInput').value='';
+  toast('已登出');
+}
+
+function updateStreak(){
+  const L=getLang();const today=todayStr();const yesterday=addDays(today,-1);
+  if(L.lastStudy!==today&&L.lastStudy!==yesterday)L.streak=0;
+  document.getElementById('streakBadge').textContent=`🔥 ${L.streak}天`;
+}
+
+function submitReport(type){
+  if(curWord){const L=getLang();if(!L.progress[curWord.id])L.progress[curWord.id]={knownCount:0,nextReview:'',lastSeen:''};saveG();}
+  toast('感謝回報！🙏');closeModal('reportModal');
+}
+
+function openModal(id){document.getElementById(id).classList.add('show');}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+init();
+</script>
+</body>
+</html>
