@@ -126,7 +126,7 @@ input,select,textarea{font-family:inherit;}
 
 /* ===== 單字卡 ===== */
 .word-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px 16px 14px;margin-bottom:10px;border:1px solid var(--border);position:relative;}
-.report-icon-btn{position:absolute;top:10px;right:10px;background:none;border:none;color:var(--text-sub);font-size:14px;padding:4px 6px;border-radius:6px;cursor:pointer;opacity:.5;transition:all .15s;}
+.report-icon-btn{position:absolute;top:10px;right:10px;background:none;border:none;color:var(--text-sub);font-size:22px;padding:4px 6px;border-radius:6px;cursor:pointer;opacity:.5;transition:all .15s;}
 .report-icon-btn:hover{color:#F97316;opacity:1;}
 .word-main{font-size:34px;font-weight:800;text-align:center;margin-bottom:6px;letter-spacing:-0.5px;}
 .pos-wrap{text-align:center;margin-bottom:12px;}
@@ -138,17 +138,17 @@ input,select,textarea{font-family:inherit;}
 
 /* 評分按鈕 UI-005 */
 .rating-row{display:flex;gap:8px;margin-bottom:10px;}
-.btn-known{flex:1;background:var(--success);color:#fff;border-radius:var(--radius-sm);padding:12px;font-size:14px;font-weight:700;}
-.btn-unknown{flex:1;background:#fff;color:var(--danger);border-radius:var(--radius-sm);padding:12px;font-size:14px;font-weight:700;border:2px solid var(--danger);}
+.btn-known{flex:1;background:var(--success);color:#fff;border-radius:var(--radius-sm);padding:14px;font-size:17px;font-weight:700;}
+.btn-unknown{flex:1;background:#fff;color:var(--danger);border-radius:var(--radius-sm);padding:14px;font-size:17px;font-weight:700;border:2px solid var(--danger);}
 
 /* 聽發音 */
-.btn-listen{width:100%;background:var(--primary-light);color:var(--primary);border-radius:var(--radius-sm);padding:10px;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:8px;}
+.btn-listen{width:100%;background:var(--primary-light);color:var(--primary);border-radius:var(--radius-sm);padding:12px;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:8px;}
 
 /* F-039 學習區聽發音速度列 */
 .listen-row{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
-.btn-speed{background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:9px 10px;font-size:12px;font-weight:700;color:var(--text-sub);flex-shrink:0;transition:all .15s;min-width:44px;}
+.btn-speed{background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:11px 10px;font-size:14px;font-weight:700;color:var(--text-sub);flex-shrink:0;transition:all .15s;min-width:48px;}
 .btn-speed.active{background:var(--primary-light);border-color:var(--primary);color:var(--primary);}
-.btn-listen-main{flex:1;background:var(--primary-light);color:var(--primary);border-radius:var(--radius-sm);padding:10px;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:5px;}
+.btn-listen-main{flex:1;background:var(--primary-light);color:var(--primary);border-radius:var(--radius-sm);padding:11px;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:5px;}
 
 /* 答案區 */
 .answer-area{display:none;margin-top:12px;animation:fadeIn .25s ease;}
@@ -160,12 +160,12 @@ input,select,textarea{font-family:inherit;}
 .zh-row{display:flex;align-items:center;justify-content:center;gap:10px;margin:10px 0;}
 .zh-main{font-size:26px;font-weight:700;color:var(--text);flex-shrink:0;}
 /* 「同」「動」小圓形按鈕，低調不搶眼 */
-.syn-entry-btn{display:none;width:20px;height:20px;border-radius:50%;background:var(--bg);border:1px solid var(--border);color:var(--text-sub);font-size:9px;font-weight:700;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;}
+.syn-entry-btn{display:none;width:36px;height:36px;border-radius:50%;background:var(--primary-light);border:2px solid var(--primary);color:var(--primary);font-size:13px;font-weight:700;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;}
 .syn-entry-btn.visible{display:flex;}
-.syn-entry-btn:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-light);}
-.verb-entry-btn{display:none;width:20px;height:20px;border-radius:50%;background:var(--bg);border:1px solid var(--border);color:var(--text-sub);font-size:9px;font-weight:700;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;}
+.syn-entry-btn:hover{background:var(--primary);color:#fff;}
+.verb-entry-btn{display:none;width:36px;height:36px;border-radius:50%;background:var(--accent-light);border:2px solid var(--accent);color:#92400E;font-size:13px;font-weight:700;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;}
 .verb-entry-btn.visible{display:flex;}
-.verb-entry-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light);}
+.verb-entry-btn:hover{background:var(--accent);color:#fff;}
 
 /* 浮層 */
 .popup-overlay{display:none;position:fixed;inset:0;z-index:500;}
@@ -1113,7 +1113,7 @@ function renderLearn(){
         <button class="btn-speed" id="btnFast" onclick="speakAt(1.5)">×1.5</button>
       </div>`:''}
       <!-- F-037 用口說按鈕 -->
-      <button class="btn-listen" id="btnSpeak" onclick="startSpeechInput()" style="background:var(--accent-light);color:#92400E;margin-bottom:0"><i class="ti ti-microphone"></i> 用口說</button>
+      <button class="btn-listen" id="btnSpeak" onclick="startSpeechInput()" style="background:var(--accent-light);color:#92400E;margin-bottom:0;font-size:16px"><i class="ti ti-microphone"></i> 用口說</button>
       <div id="speechFeedback" style="display:none;font-size:12px;color:var(--text-sub);text-align:center;margin-top:4px;"></div>
       <div class="answer-area" id="answerArea">
         <!-- UI-006 同義詞左側 + 中文翻譯 + 動詞三態右側 -->
