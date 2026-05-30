@@ -1213,9 +1213,13 @@ function showPopup(e,title,content){
   const box=document.getElementById('popupBox');
   document.getElementById('popupTitle').textContent=title;
   document.getElementById('popupContent').innerHTML=content;
-  const rect=e.target.getBoundingClientRect();
-  box.style.top=(rect.bottom+8)+'px';
-  box.style.left=Math.min(rect.left,window.innerWidth-250)+'px';
+  // iOS Safari fix：改用固定置中顯示，避免座標計算問題
+  box.style.position='fixed';
+  box.style.top='50%';
+  box.style.left='50%';
+  box.style.transform='translate(-50%,-50%)';
+  box.style.maxWidth='85vw';
+  box.style.minWidth='220px';
   overlay.classList.add('show');
 }
 function closePopup(){document.getElementById('popupOverlay').classList.remove('show');}
@@ -1287,7 +1291,7 @@ function startSpeechInput(){
   if(!btn||btn.disabled)return;
   if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){
     fb.style.display='block';
-    fb.textContent='⚠️ 瀏覽器不支援語音辨識，請改用 Chrome';
+    fb.textContent='⚠️ 瀏覽器不支援語音辨識，請改用 Chrome 或 Safari';
     speechFailCount++;
     if(speechFailCount>=3){btn.disabled=true;btn.style.opacity='.4';}
     return;
@@ -1296,14 +1300,46 @@ function startSpeechInput(){
   const rec=new SpeechRecognition();
   const langMap={en:'en-US',ja:'ja-JP',ko:'ko-KR'};
   rec.lang=langMap[G.currentLang]||'en-US';
-  rec.continuous=false;rec.interimResults=false;
-  btn.innerHTML='<i class="ti ti-microphone" style="animation:pulse 1s infinite"></i> 聆聽中...';
-  btn.disabled=true;
+  rec.continuous=false;
+  rec.interimResults=false;
+  // iOS Safari：maxAlternatives 設 1 比較穩定
+  rec.maxAlternatives=1;
+
+  btn.innerHTML='<i class="ti ti-microphone" style="animation:pulse 1s infinite"></i> 聆聽中... <span style="font-size:11px;opacity:.7">（點此停止）</span>';
+  btn.disabled=false; // iOS 不 disabled，讓使用者可以點停止
+  btn.onclick=function(){
+    try{rec.stop();}catch(e){}
+    resetSpeakBtn();
+  };
+
+  let finished=false;
+
+  function resetSpeakBtn(){
+    if(finished)return;
+    finished=true;
+    btn.innerHTML='<i class="ti ti-microphone"></i> 用口說';
+    btn.disabled=false;
+    btn.onclick=function(){startSpeechInput();};
+  }
+
+  // 安全逾時：10秒後自動重置（iOS有時不觸發onend）
+  const safetyTimer=setTimeout(()=>{
+    try{rec.stop();}catch(e){}
+    resetSpeakBtn();
+    if(!finished){
+      fb.style.display='block';
+      fb.style.color='var(--text-sub)';
+      fb.textContent='⚠️ 辨識逾時，請再試一次';
+    }
+  },10000);
+
   fb.style.display='none';
+
   rec.onresult=function(e){
+    clearTimeout(safetyTimer);
     const said=(e.results[0][0].transcript||'').trim().toLowerCase();
     const target=(curWord.en||'').toLowerCase();
-    btn.innerHTML='<i class="ti ti-microphone"></i> 用口說';btn.disabled=false;
+    resetSpeakBtn();
     if(said===target||said.includes(target)||target.includes(said)){
       fb.style.display='block';fb.style.color='var(--success)';
       fb.textContent=`✅ 辨識成功：「${said}」—— 太棒了！`;
@@ -1313,8 +1349,10 @@ function startSpeechInput(){
       fb.textContent=`🎤 辨識為：「${said}」，請再試一次`;
     }
   };
+
   rec.onerror=function(e){
-    btn.innerHTML='<i class="ti ti-microphone"></i> 用口說';
+    clearTimeout(safetyTimer);
+    resetSpeakBtn();
     speechFailCount++;
     fb.style.display='block';fb.style.color='var(--danger)';
     const errMsg={
@@ -1329,11 +1367,23 @@ function startSpeechInput(){
       btn.disabled=true;btn.style.opacity='.4';
       fb.textContent=`⛔ ${msg}（已達3次上限，此題請用按鈕作答）`;
     }else{
-      btn.disabled=false;
       fb.textContent=`⚠️ ${msg}（${speechFailCount}/3次）—— 再試一次`;
     }
   };
-  rec.start();
+
+  // iOS Safari 一定要有 onend，否則會卡住
+  rec.onend=function(){
+    clearTimeout(safetyTimer);
+    resetSpeakBtn();
+  };
+
+  try{
+    rec.start();
+  }catch(e){
+    resetSpeakBtn();
+    fb.style.display='block';
+    fb.textContent='⚠️ 無法啟動語音辨識：'+e.message;
+  }
 }
 
 // 不熟清單
