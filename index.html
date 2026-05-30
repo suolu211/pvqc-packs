@@ -78,9 +78,9 @@ input,select,textarea{font-family:inherit;}
 
 /* Nav */
 .nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:100;}
-.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0;background:none;color:var(--text-sub);font-size:10px;transition:all .2s;border-top:2px solid transparent;}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 0;background:none;color:var(--text-sub);font-size:13px;transition:all .2s;border-top:2px solid transparent;}
 .nav-btn.active{color:var(--primary);border-top-color:var(--primary);}
-.nav-btn i{font-size:20px;}
+.nav-btn i{font-size:26px;}
 
 /* Pages */
 .page{display:none;padding:14px;padding-bottom:80px;}
@@ -188,12 +188,12 @@ input,select,textarea{font-family:inherit;}
 
 /* 結算 */
 .result-card{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);padding:24px 16px;text-align:center;}
-.result-title{font-size:20px;font-weight:800;color:var(--primary);margin-bottom:4px;}
-.result-sub{font-size:13px;color:var(--text-sub);margin-bottom:16px;}
+.result-title{font-size:22px;font-weight:800;color:var(--primary);margin-bottom:4px;}
+.result-sub{font-size:15px;color:var(--text-sub);margin-bottom:16px;}
 .stat-row{display:flex;justify-content:center;gap:24px;margin-bottom:16px;}
 .stat-box{text-align:center;}
-.stat-num{font-size:28px;font-weight:800;}
-.stat-label{font-size:11px;color:var(--text-sub);}
+.stat-num{font-size:30px;font-weight:800;}
+.stat-label{font-size:13px;color:var(--text-sub);}
 
 /* 地標卡 */
 .lm-card{background:linear-gradient(135deg,var(--primary-light),var(--accent-light));border-radius:var(--radius-sm);padding:14px;margin:10px 0;text-align:center;}
@@ -217,15 +217,15 @@ input,select,textarea{font-family:inherit;}
 .qr-hint{font-size:11px;color:var(--text-sub);line-height:1.7;margin-top:8px;text-align:left;}
 
 /* 字庫包 */
-.pack-section-title{font-size:13px;font-weight:700;color:var(--text-sub);margin:14px 0 8px;display:flex;align-items:center;gap:6px;}
+.pack-section-title{font-size:15px;font-weight:700;color:var(--text-sub);margin:14px 0 8px;display:flex;align-items:center;gap:6px;}
 .pack-card{background:var(--card);border-radius:var(--radius-sm);border:1px solid var(--border);padding:12px 14px;margin-bottom:8px;transition:border-color .2s;}
 .pack-card.active{border-color:var(--primary);}
-.pack-name{font-size:14px;font-weight:700;}
-.pack-badge{font-size:10px;background:var(--success);color:#fff;border-radius:99px;padding:1px 7px;margin-left:5px;}
+.pack-name{font-size:17px;font-weight:700;}
+.pack-badge{font-size:11px;background:var(--success);color:#fff;border-radius:99px;padding:1px 7px;margin-left:5px;}
 .pack-meta{font-size:11px;color:var(--text-sub);margin-top:3px;}
 .pack-progress-bar{background:var(--border);border-radius:99px;height:4px;margin:6px 0 4px;overflow:hidden;}
 .pack-progress-fill{height:100%;background:var(--primary);border-radius:99px;}
-.pack-progress-label{font-size:10px;color:var(--text-sub);}
+.pack-progress-label{font-size:12px;color:var(--text-sub);}
 .pack-actions{display:flex;gap:6px;margin-top:8px;}
 .pack-toggle{flex:1;border-radius:99px;padding:6px;font-size:12px;font-weight:600;background:var(--border);color:var(--text-sub);}
 .pack-card.active .pack-toggle{background:var(--primary);color:#fff;}
@@ -233,9 +233,9 @@ input,select,textarea{font-family:inherit;}
 .store-search{width:100%;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;font-size:14px;background:var(--card);margin-bottom:10px;outline:none;}
 .store-search:focus{border-color:var(--primary);}
 .store-card{background:var(--card);border-radius:var(--radius-sm);border:1px solid var(--border);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;}
-.store-name{font-size:14px;font-weight:700;}
-.store-meta{font-size:11px;color:var(--text-sub);margin-top:2px;}
-.store-price{font-size:13px;font-weight:700;color:var(--primary);margin-top:2px;}
+.store-name{font-size:17px;font-weight:700;}
+.store-meta{font-size:13px;color:var(--text-sub);margin-top:2px;}
+.store-price{font-size:15px;font-weight:700;color:var(--primary);margin-top:2px;}
 .btn-buy{background:var(--primary);color:#fff;border-radius:99px;padding:7px 16px;font-size:12px;font-weight:700;}
 
 /* 建字 */
@@ -243,8 +243,8 @@ input,select,textarea{font-family:inherit;}
 .build-tab{flex:1;padding:10px;background:var(--bg);color:var(--text-sub);font-size:13px;font-weight:600;text-align:center;transition:all .2s;}
 .build-tab.active{background:var(--primary);color:#fff;}
 .input-group{margin-bottom:12px;}
-.input-label{font-size:12px;color:var(--text-sub);margin-bottom:4px;display:block;font-weight:600;}
-.input-label .opt{font-size:10px;color:var(--text-sub);background:var(--border);border-radius:99px;padding:1px 7px;margin-left:4px;}
+.input-label{font-size:14px;color:var(--text-sub);margin-bottom:4px;display:block;font-weight:600;}
+.input-label .opt{font-size:12px;color:var(--text-sub);background:var(--border);border-radius:99px;padding:1px 7px;margin-left:4px;}
 .input-field{width:100%;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:14px;color:var(--text);background:var(--card);outline:none;transition:border-color .2s;}
 .input-field:focus{border-color:var(--primary);}
 .build-notice{background:var(--accent-light);border-radius:var(--radius-sm);padding:10px 12px;font-size:12px;color:#92400E;line-height:1.6;margin-bottom:12px;}
@@ -253,15 +253,15 @@ input,select,textarea{font-family:inherit;}
 /* 成果/統計 */
 .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
 .stat-card{background:var(--card);border-radius:var(--radius-sm);border:1px solid var(--border);padding:13px;text-align:center;}
-.stat-card-num{font-size:26px;font-weight:800;color:var(--primary);}
-.stat-card-label{font-size:11px;color:var(--text-sub);margin-top:2px;}
+.stat-card-num{font-size:28px;font-weight:800;color:var(--primary);}
+.stat-card-label{font-size:13px;color:var(--text-sub);margin-top:2px;}
 
 /* 設定 */
 .setting-card{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);padding:0 14px;margin-bottom:10px;}
 .setting-item{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--border);}
 .setting-item:last-child{border-bottom:none;}
-.setting-label{font-size:14px;font-weight:600;}
-.setting-sub{font-size:11px;color:var(--text-sub);margin-top:2px;}
+.setting-label{font-size:16px;font-weight:600;}
+.setting-sub{font-size:13px;color:var(--text-sub);margin-top:2px;}
 .ctrl{display:flex;align-items:center;gap:7px;}
 .cnt-btn{width:30px;height:30px;border-radius:50%;background:var(--primary-light);color:var(--primary);font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;}
 .cnt-val{font-size:15px;font-weight:700;min-width:28px;text-align:center;}
